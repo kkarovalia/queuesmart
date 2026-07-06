@@ -3,9 +3,34 @@ import reactLogo from './assets/react.svg'
 import viteLogo from './assets/vite.svg'
 import heroImg from './assets/hero.png'
 import './App.css'
+import { useUser, type UserQuery } from './api'
+
+function UserDisplay({ userQuery }: {userQuery: UserQuery}) {
+  if (userQuery.isLoading) {
+    return (
+      <h3>Loading...</h3>
+    )
+  }
+  if (userQuery.error) {
+    return (
+      <h3>Error!</h3>
+    ) // Would ideally route back to login or somewhere else
+  }
+  if (!userQuery.data) {
+    return (
+      <h3>Could not load user.</h3>
+    )
+  }
+  return (
+    <h3>
+      Welcome {userQuery.data.name}!
+    </h3>
+  )
+}
 
 function App() {
   const [count, setCount] = useState(0)
+  const userQuery: UserQuery = useUser();
 
   return (
     <>
@@ -28,6 +53,9 @@ function App() {
         >
           Count is {count}
         </button>
+        <div>
+          <UserDisplay userQuery={userQuery} />
+        </div>
       </section>
 
       <div className="ticks"></div>
