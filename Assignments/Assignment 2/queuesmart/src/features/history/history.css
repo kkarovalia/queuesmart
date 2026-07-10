@@ -1,0 +1,57 @@
+.history-page__filter {
+    margin-bottom: 0.75rem;
+    font-size: 0.9rem;
+}
+
+.history-page__filter select {
+    margin-left: 0.5rem;
+    padding: 0.3rem 0.5rem;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+}
+
+.history-page__card {
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 1.25rem;
+}
+
+.history-page__empty {
+    color: #666;
+}
+
+.history-page__table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.history-page__table th,
+.history-page__table td {
+    text-align: left;
+    padding: 0.5rem 0.35rem;
+    border-bottom: 1px solid #e0e0e0;
+    font-size: 0.9rem;
+}
+
+.history-page__outcome {
+    display: inline-block;
+    padding: 0.15rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.history-page__outcome--seated {
+    background-color: #d1f7dc;
+    color: #12703b;
+}
+
+.history-page__outcome--cancelled {
+    background-color: #e7ecf5;
+    color: #3a4d75;
+}
+
+.history-page__outcome--no-show {
+    background-color: #fbdada;
+    color: #9c1f1f;
+}

@@ -1,44 +1,96 @@
-export type PriorityLevel = "low" | "medium" | "high";
-
-export type QueueStatus = "waiting" | "almost-ready" | "served" | "cancelled" | "no-show";
+export type PriorityLevel = 'low' | 'medium' | 'high'
+export type ServiceStatus = 'open' | 'closed'
 
 export interface Service {
-  id: string;
-  name: string; // required, max 100 chars
-  description: string; // required
-  expectedDurationMinutes: number; // required, positive number
-  priority: PriorityLevel;
-  isOpen: boolean;
-  currentQueueLength: number;
-  estimatedWaitMinutes: number;
+    id: string
+    name: string
+    description: string
+    expectedDurationMinutes: number
+    priority: PriorityLevel
+    status: ServiceStatus
+}
+
+export interface ServiceFormInput {
+    name: string
+    description: string
+    expectedDurationMinutes: number
+    priority: PriorityLevel
 }
 
 export interface QueueEntry {
-  id: string;
-  userId: string;
-  serviceId: string;
-  partySize: number;
-  position: number;
-  estimatedWaitMinutes: number;
-  status: QueueStatus;
-  joinedAt: string; // ISO timestamp
-  updatedAt: string; // ISO timestamp
+    id: string
+    serviceId: string
+    customerName: string
+    joinedAt: string
 }
 
-export interface HistoryRecord {
-  id: string;
-  serviceName: string;
-  date: string; // ISO date
-  partySize: number;
-  outcome: "seated" | "cancelled" | "no-show";
-  waitMinutes: number;
+export type TableStatus = 'available' | 'occupied'
+
+export interface Table {
+    id: string
+    label: string
+    seats: number
+    section: string
+    status: TableStatus
+}
+
+export interface TableFormInput {
+    label: string
+    seats: number
+    section: string
+}
+
+export type ReservationStatus = 'confirmed' | 'cancelled' | 'completed'
+
+export interface Reservation {
+    id: string
+    customerName: string
+    partySize: number
+    dateTime: string
+    tableId: string | null
+    status: ReservationStatus
+}
+
+export interface ReservationFormInput {
+    customerName: string
+    partySize: number
+    dateTime: string
+    tableId: string | null
+}
+
+// --- Added for User Access + History (Nelson) ---
+// Kept separate from Service/QueueEntry above since those already
+// power the admin screens with a different shape. These describe the
+// logged-in customer's own view: their personal spot in a queue and
+// their past visit history, not the admin's list of all customers.
+
+export type MyQueueStatusValue = 'waiting' | 'almost-ready' | 'served'
+
+export interface MyQueueStatus {
+    id: string
+    serviceId: string
+    partySize: number
+    position: number
+    estimatedWaitMinutes: number
+    status: MyQueueStatusValue
+    joinedAt: string
+}
+
+export type WaitlistOutcome = 'seated' | 'cancelled' | 'no-show'
+
+export interface WaitlistHistoryRecord {
+    id: string
+    serviceName: string
+    date: string
+    partySize: number
+    outcome: WaitlistOutcome
+    waitMinutes: number
 }
 
 export interface AppNotification {
-  id: string;
-  title: string;
-  body: string;
-  createdAt: string;
-  read: boolean;
-  kind: "queue-update" | "status-change";
+    id: string
+    title: string
+    body: string
+    createdAt: string
+    read: boolean
 }
