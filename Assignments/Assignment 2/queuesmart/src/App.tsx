@@ -1,150 +1,67 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
-import { useUser, type UserQuery } from './api'
+import { Link, Outlet } from "@tanstack/react-router";
+import { useUser } from "./api";
 
-function UserDisplay({ userQuery }: {userQuery: UserQuery}) {
-  if (userQuery.isLoading) {
-    return (
-      <h3>Loading...</h3>
-    )
-  }
-  if (userQuery.error) {
-    return (
-      <h3>Error!</h3>
-    ) // Would ideally route back to login or somewhere else
-  }
-  if (!userQuery.data) {
-    return (
-      <h3>Could not load user.</h3>
-    )
-  }
-  return (
-    <h3>
-      Welcome {userQuery.data.name}!
-    </h3>
-  )
-}
+const userLinks = [
+  { to: "/dashboard", label: "Dashboard" },
+  { to: "/join-queue", label: "Join Queue" },
+  { to: "/queue-status", label: "Queue Status" },
+  { to: "/history", label: "History" },
+  { to: "/notifications", label: "Notifications" },
+];
 
-function App() {
-  const [count, setCount] = useState(0)
-  const userQuery: UserQuery = useUser();
+const adminLinks = [
+  { to: "/admin/dashboard", label: "Admin Dashboard" },
+  { to: "/admin/services", label: "Service Management" },
+  { to: "/admin/queue", label: "Queue Management" },
+];
+
+export function App() {
+  const userQuery = useUser();
+  const user = userQuery.data;
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
+    <div className="app-shell">
+      <header className="app-header">
+        <div className="brand">QueueSmart</div>
+        <div className="header-right">
+          {/* Mock auth always returns a "logged in" user (see api.ts),
+              so there's no real logged-out state to branch on yet.
+              This link is static for A2 - always visible, always
+              points to /login - rather than pretending to be
+              conditional on auth state that doesn't really exist.
+              Revisit once real auth (A3) has a true logged-out state. */}
+          <Link to="/login" className="header-link">Log in</Link>
+          <div className="user-pill">{user ? user.name : "..."}</div>
         </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-        <div>
-          <UserDisplay userQuery={userQuery} />
-        </div>
-      </section>
+      </header>
 
-      <div className="ticks"></div>
+      <div className="app-body">
+        <nav className="app-nav">
+          <div className="nav-group-label">User</div>
+          {userLinks.map((link) => (
+            <Link key={link.to} to={link.to} className="nav-link" activeProps={{ className: "nav-link active" }}>
+              {link.label}
+            </Link>
+          ))}
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+          {}
+          {user?.admin && (
+            <>
+              <div className="nav-group-label">Admin</div>
+              {adminLinks.map((link) => (
+                <Link key={link.to} to={link.to} className="nav-link" activeProps={{ className: "nav-link active" }}>
+                  {link.label}
+                </Link>
+              ))}
+            </>
+          )}
+        </nav>
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+        <main className="app-main">
+          {}
+          <Outlet />
+        </main>
+      </div>
+    </div>
+  );
 }
-
-export default App
