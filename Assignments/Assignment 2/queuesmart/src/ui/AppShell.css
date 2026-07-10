@@ -1,0 +1,31 @@
+.app-shell__header {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.app-shell__title {
+    font-weight: 700;
+    font-size: 1.25rem;
+}
+
+.app-shell__nav {
+    display: flex;
+    gap: 1.25rem;
+}
+
+.app-shell__nav a {
+    text-decoration: none;
+    color: inherit;
+    font-weight: 500;
+}
+
+.app-shell__nav a.is-active {
+    text-decoration: underline;
+}
+
+.app-shell__content {
+    padding: 1.5rem;
+}

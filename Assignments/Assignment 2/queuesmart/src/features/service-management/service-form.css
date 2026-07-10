@@ -1,0 +1,22 @@
+.service-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    max-width: 420px;
+}
+
+.service-form__field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.service-form__field label {
+    font-weight: 600;
+}
+
+.service-form__error {
+    color: #9c1f1f;
+    font-size: 0.85rem;
+    margin: 0;
+}
