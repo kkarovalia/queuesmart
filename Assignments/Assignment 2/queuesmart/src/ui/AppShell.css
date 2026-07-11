@@ -29,3 +29,19 @@
 .app-shell__content {
     padding: 1.5rem;
 }
+
+/* Responsive QA (Nelson). The nav grew from 4 links to 10 once the
+   user-side links were added; on narrow screens a single flex row
+   would overflow. Wrap it instead of scrolling horizontally. */
+@media (max-width: 720px) {
+    .app-shell__header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+
+    .app-shell__nav {
+        flex-wrap: wrap;
+        gap: 0.75rem 1rem;
+    }
+}

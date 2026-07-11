@@ -1,4 +1,4 @@
-import type { Service, QueueEntry, Table, Reservation } from '../contracts/types'
+import type { Service, QueueEntry, Table, Reservation, MyQueueStatus, WaitlistHistoryRecord, AppNotification } from '../contracts/types'
 
 export const mockServices: Service[] = [
     {
@@ -78,5 +78,71 @@ export const mockReservations: Reservation[] = [
         dateTime: '2026-07-08T20:00:00Z',
         tableId: 'tbl-5',
         status: 'cancelled',
+    },
+]
+
+// --- Added for User Access + History (Nelson) ---
+// Reuses the existing svc-1/svc-2 ids above so the customer-facing
+// dashboard references the same real services the admin side manages.
+
+export const mockMyQueueStatus: MyQueueStatus = {
+    id: 'my-q-1',
+    serviceId: 'svc-2',
+    partySize: 4,
+    position: 3,
+    estimatedWaitMinutes: 35,
+    status: 'waiting',
+    joinedAt: new Date(Date.now() - 1000 * 60 * 10).toISOString(),
+}
+
+export const mockWaitlistHistory: WaitlistHistoryRecord[] = [
+    {
+        id: 'h-1',
+        serviceName: 'Dinner Reservations',
+        date: '2026-06-19',
+        partySize: 4,
+        outcome: 'seated',
+        waitMinutes: 40,
+    },
+    {
+        id: 'h-2',
+        serviceName: 'Walk-in Waitlist',
+        date: '2026-06-02',
+        partySize: 2,
+        outcome: 'cancelled',
+        waitMinutes: 0,
+    },
+    {
+        id: 'h-3',
+        serviceName: 'Walk-in Waitlist',
+        date: '2026-05-23',
+        partySize: 1,
+        outcome: 'seated',
+        waitMinutes: 15,
+    },
+    {
+        id: 'h-4',
+        serviceName: 'Dinner Reservations',
+        date: '2026-05-12',
+        partySize: 5,
+        outcome: 'no-show',
+        waitMinutes: 55,
+    },
+]
+
+export const mockNotifications: AppNotification[] = [
+    {
+        id: 'n-1',
+        title: "You're almost up!",
+        body: "You're next in line for Walk-in Waitlist.",
+        createdAt: new Date(Date.now() - 1000 * 60 * 2).toISOString(),
+        read: false,
+    },
+    {
+        id: 'n-2',
+        title: 'Your table is ready',
+        body: 'Please head to the host stand within 5 minutes.',
+        createdAt: new Date(Date.now() - 1000 * 60 * 20).toISOString(),
+        read: true,
     },
 ]

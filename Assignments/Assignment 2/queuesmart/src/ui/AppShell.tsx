@@ -14,6 +14,21 @@ export function AppShell() {
                     <Link to="/" activeOptions={{ exact: true }} activeProps={{ className: 'is-active' }}>
                         Home
                     </Link>
+                    <Link to="/dashboard" activeProps={{ className: 'is-active' }}>
+                        Dashboard
+                    </Link>
+                    <Link to="/join-queue" activeProps={{ className: 'is-active' }}>
+                        Join Queue
+                    </Link>
+                    <Link to="/queue-status" activeProps={{ className: 'is-active' }}>
+                        Queue Status
+                    </Link>
+                    <Link to="/history" activeProps={{ className: 'is-active' }}>
+                        History
+                    </Link>
+                    <Link to="/notifications" activeProps={{ className: 'is-active' }}>
+                        Notifications{unreadCount > 0 ? ` (${unreadCount})` : ''}
+                    </Link>
                     <Link to="/admin" activeProps={{ className: 'is-active' }}>
                         Admin Dashboard
                     </Link>
@@ -23,14 +38,8 @@ export function AppShell() {
                     <Link to="/admin/tables" activeProps={{ className: 'is-active' }}>
                         Tables
                     </Link>
-                    <Link to="/join-queue" activeProps={{ className: 'is-active' }}>
-                        Join Queue
-                    </Link>
-                    <Link to="/queue-status" activeProps={{ className: 'is-active' }}>
-                        Queue Status
-                    </Link>
-                    <Link to="/notifications" activeProps={{ className: 'is-active' }}>
-                        Notifications{unreadCount > 0 ? ` (${unreadCount})` : ''}
+                    <Link to="/login" activeProps={{ className: 'is-active' }}>
+                        Log in
                     </Link>
                 </nav>
             </header>

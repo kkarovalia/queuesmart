@@ -26,7 +26,6 @@ export interface QueueEntry {
 
 export interface QueueEntryFormInput {
     customerName: string
-    
 }
 
 export type TableStatus = 'available' | 'occupied'
@@ -61,4 +60,41 @@ export interface ReservationFormInput {
     partySize: number
     dateTime: string
     tableId: string | null
+}
+
+// --- Added for User Access + History (Nelson) ---
+// Kept separate from Service/QueueEntry above since those already
+// power the admin screens with a different shape. These describe the
+// logged-in customer's own view: their personal spot in a queue and
+// their past visit history, not the admin's list of all customers.
+
+export type MyQueueStatusValue = 'waiting' | 'almost-ready' | 'served'
+
+export interface MyQueueStatus {
+    id: string
+    serviceId: string
+    partySize: number
+    position: number
+    estimatedWaitMinutes: number
+    status: MyQueueStatusValue
+    joinedAt: string
+}
+
+export type WaitlistOutcome = 'seated' | 'cancelled' | 'no-show'
+
+export interface WaitlistHistoryRecord {
+    id: string
+    serviceName: string
+    date: string
+    partySize: number
+    outcome: WaitlistOutcome
+    waitMinutes: number
+}
+
+export interface AppNotification {
+    id: string
+    title: string
+    body: string
+    createdAt: string
+    read: boolean
 }
