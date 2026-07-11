@@ -1,0 +1,81 @@
+.user-dashboard__card {
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+}
+
+.user-dashboard__card h2 {
+    margin-top: 0;
+}
+
+.user-dashboard__queue-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.user-dashboard__queue-name {
+    font-weight: 600;
+}
+
+.user-dashboard__queue-meta {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.user-dashboard__queue-wait {
+    text-align: right;
+}
+
+.user-dashboard__wait-pill {
+    display: inline-block;
+    padding: 0.15rem 0.6rem;
+    border-radius: 999px;
+    background: var(--accent-bg);
+    color: var(--accent);
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.user-dashboard__empty {
+    color: #666;
+}
+
+.user-dashboard__table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.user-dashboard__table th,
+.user-dashboard__table td {
+    text-align: left;
+    padding: 0.5rem 0.35rem;
+    border-bottom: 1px solid #e0e0e0;
+    font-size: 0.9rem;
+}
+
+.user-dashboard__notif-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.user-dashboard__unread-pill {
+    display: inline-block;
+    padding: 0.15rem 0.6rem;
+    border-radius: 999px;
+    background: #fdecc8;
+    color: #8a5a12;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.user-dashboard__notif-list {
+    padding-left: 1.1rem;
+    margin-bottom: 0.6rem;
+}
+
+.user-dashboard__notif-list li {
+    margin-bottom: 0.35rem;
+}

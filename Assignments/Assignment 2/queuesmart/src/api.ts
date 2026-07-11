@@ -17,13 +17,19 @@ import type {
     Reservation,
     ReservationFormInput,
     QueueEntry,
+    MyQueueStatus,
+    WaitlistHistoryRecord,
+    AppNotification,
 } from './contracts/types';
 
 import {
     mockServices,
     mockQueueEntries,
     mockTables,
-    mockReservations
+    mockReservations,
+    mockMyQueueStatus,
+    mockWaitlistHistory,
+    mockNotifications,
 } from './data/mockData';
 
 interface User {
@@ -484,5 +490,50 @@ export function useAddQueueEntry(serviceId: string): AddQueueEntryMutation {
             queryClient.invalidateQueries({ queryKey });
             queryClient.invalidateQueries({ queryKey: ['queueLengths'] });
         },
+    })
+}
+
+async function fetchMyQueueStatus(): Promise<MyQueueStatus | null> {
+    await new Promise(r => setTimeout(r, FAKE_DELAY_MS));
+    return mockMyQueueStatus;
+}
+
+export type MyQueueStatusQuery = UseQueryResult<NoInfer<MyQueueStatus | null>, Error>;
+
+export function useMyQueueStatus(): MyQueueStatusQuery {
+    return useQuery({
+        queryKey: ['myQueueStatus'],
+        queryFn: fetchMyQueueStatus,
+        staleTime: 10 * 1000,
+    })
+}
+
+async function fetchWaitlistHistory(): Promise<WaitlistHistoryRecord[]> {
+    await new Promise(r => setTimeout(r, FAKE_DELAY_MS));
+    return mockWaitlistHistory;
+}
+
+export type WaitlistHistoryQuery = UseQueryResult<NoInfer<WaitlistHistoryRecord[]>, Error>;
+
+export function useWaitlistHistory(): WaitlistHistoryQuery {
+    return useQuery({
+        queryKey: ['waitlistHistory'],
+        queryFn: fetchWaitlistHistory,
+        staleTime: 5 * 60 * 1000,
+    })
+}
+
+async function fetchNotifications(): Promise<AppNotification[]> {
+    await new Promise(r => setTimeout(r, FAKE_DELAY_MS));
+    return mockNotifications;
+}
+
+export type NotificationsQuery = UseQueryResult<NoInfer<AppNotification[]>, Error>;
+
+export function useNotifications(): NotificationsQuery {
+    return useQuery({
+        queryKey: ['notifications'],
+        queryFn: fetchNotifications,
+        staleTime: 30 * 1000,
     })
 }

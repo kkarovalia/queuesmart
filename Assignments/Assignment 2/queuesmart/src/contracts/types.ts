@@ -62,3 +62,34 @@ export interface ReservationFormInput {
     dateTime: string
     tableId: string | null
 }
+
+export type MyQueueStatusValue = 'waiting' | 'almost-ready' | 'served'
+
+export interface MyQueueStatus {
+    id: string
+    serviceId: string
+    partySize: number
+    position: number
+    estimatedWaitMinutes: number
+    status: MyQueueStatusValue
+    joinedAt: string
+}
+
+export type WaitlistOutcome = 'seated' | 'cancelled' | 'no-show'
+
+export interface WaitlistHistoryRecord {
+    id: string
+    serviceName: string
+    date: string
+    partySize: number
+    outcome: WaitlistOutcome
+    waitMinutes: number
+}
+
+export interface AppNotification {
+    id: string
+    title: string
+    body: string
+    createdAt: string
+    read: boolean
+}
