@@ -1,17 +1,5 @@
-import { createFileRoute, Link } from '@tanstack/react-router'
+import { createFileRoute, redirect } from '@tanstack/react-router'
 
 export const Route = createFileRoute('/')({
-    component: HomePage,
+    beforeLoad: () => { throw redirect({ to: '/login' }) },
 })
-
-function HomePage() {
-    return (
-        <div>
-            <h1>QueueSmart</h1>
-            <p>Smart queue management for restaurants.</p>
-            <p>
-                <Link to="/admin">Go to Admin Dashboard</Link>
-            </p>
-        </div>
-    )
-}

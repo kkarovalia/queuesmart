@@ -1,39 +1,8 @@
-import type { DragEvent } from "react";
-import type { QueueEntry } from "../../contracts/types";
+import { ArrowDown, ArrowUp, Trash2 } from 'lucide-react'
+import type { QueueEntry } from '../../contracts/types'
 
-interface QueueListItemProps {
-    position: number
-    queueEntry: QueueEntry & { isPending?: boolean }
-    onDragStart: (e: DragEvent<HTMLLIElement>) => void
-    onDragOver: (e: DragEvent<HTMLLIElement>) => void
-    onDrop: (e: DragEvent<HTMLLIElement>) => void
-    onDragEnd: (e: DragEvent<HTMLLIElement>) => void
-    isDragging: boolean
-}
+type Props = { position: number; queueEntry: QueueEntry & { isPending?: boolean }; onMoveUp: () => void; onMoveDown: () => void; onRemove: () => void; canMoveUp: boolean; canMoveDown: boolean }
 
-export function QueueListItem({
-    position, queueEntry, onDragStart, onDragOver, onDrop, onDragEnd, isDragging,
-}: QueueListItemProps) {
-    return (
-        <li
-            className={`service-list-item${isDragging ? ' service-list-item--dragging' : ''}`}
-            draggable
-            onDragStart={onDragStart}
-            onDragOver={onDragOver}
-            onDrop={onDrop}
-            onDragEnd={onDragEnd}
-        >
-            <div className="service-list-item__info">
-                <div className="service-list-item__heading">
-                    <span className="service-list-item__name">
-                        {position}. {queueEntry.customerName}
-                        {queueEntry.isPending && <em className="service-list-item__pending-tag"> (unsaved)</em>}
-                    </span>
-                </div>
-                <p className="service-list-item__description">
-                    {queueEntry.isPending ? 'Not yet saved' : `Joined at ${queueEntry.joinedAt}`}
-                </p>
-            </div>
-        </li>
-    )
+export function QueueListItem({ position, queueEntry, onMoveUp, onMoveDown, onRemove, canMoveUp, canMoveDown }: Props) {
+    return <li className="queue-row"><span className="queue-row__position">{position}</span><span><strong>{queueEntry.customerName}</strong>{queueEntry.isPending ? <small>Unsaved</small> : null}</span><span>{queueEntry.partySize}</span><span>{queueEntry.estimatedWaitMinutes} min</span><span>{queueEntry.isPending ? 'Now' : new Date(queueEntry.joinedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span><span className="queue-row__actions"><button className="icon-button" type="button" onClick={onMoveUp} disabled={!canMoveUp} aria-label={`Move ${queueEntry.customerName} up`} title="Move up"><ArrowUp size={15} /></button><button className="icon-button" type="button" onClick={onMoveDown} disabled={!canMoveDown} aria-label={`Move ${queueEntry.customerName} down`} title="Move down"><ArrowDown size={15} /></button><button className="icon-button queue-row__remove" type="button" onClick={onRemove} aria-label={`Remove ${queueEntry.customerName}`} title="Remove guest"><Trash2 size={15} /></button></span></li>
 }

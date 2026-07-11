@@ -8,11 +8,11 @@ export function ReservationManagementPage() {
     const tablesQuery = useTables()
 
     return (
-        <div className="admin-dashboard">
+        <section className="admin-dashboard page">
             <div className="admin-dashboard__header">
                 <h1>Reservation Management</h1>
-                <Link to="/admin/reservations/new" className="admin-dashboard__create-link">
-                    + New reservation
+                <Link to="/admin/reservations/new" className="primary-button">
+                    New reservation
                 </Link>
             </div>
 
@@ -22,7 +22,7 @@ export function ReservationManagementPage() {
             )}
 
             {reservationsQuery.data && (
-                <ul className="admin-dashboard__list">
+                <ul className="admin-dashboard__list panel">
                     {reservationsQuery.data.map(reservation => (
                         <ReservationListItem
                             key={reservation.id}
@@ -32,6 +32,6 @@ export function ReservationManagementPage() {
                     ))}
                 </ul>
             )}
-        </div>
+        </section>
     )
 }

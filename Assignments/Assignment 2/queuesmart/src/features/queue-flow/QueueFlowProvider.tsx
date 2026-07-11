@@ -30,7 +30,24 @@ const createId = (prefix: string) => {
 
 export function QueueFlowProvider({ children }: { children: ReactNode }) {
     const [activeQueue, setActiveQueue] = useState<ActiveQueueEntry | null>(null)
-    const [notifications, setNotifications] = useState<QueueNotification[]>([])
+    const [notifications, setNotifications] = useState<QueueNotification[]>([
+        {
+            id: 'notification-welcome',
+            title: 'Welcome to QueueSmart',
+            message: 'Open queues and reservations are ready to browse.',
+            createdAt: 'Today',
+            read: true,
+            tone: 'info',
+        },
+        {
+            id: 'notification-reservation',
+            title: 'Reservation confirmed',
+            message: 'Your table for 4 is confirmed for Sunday at 7:00 PM.',
+            createdAt: '7 min ago',
+            read: false,
+            tone: 'success',
+        },
+    ])
 
     const addNotification = (
         title: string,

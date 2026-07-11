@@ -83,7 +83,7 @@ export function TableForm({ mode, initialValues, onSubmit, isSubmitting }: Table
                 {errors.section && <p className="service-form__error">{errors.section}</p>}
             </div>
 
-            <button type="submit" disabled={isSubmitting}>
+            <button className="primary-button" type="submit" disabled={isSubmitting}>
                 {mode === 'create' ? 'Add table' : 'Save changes'}
             </button>
         </form>

@@ -32,10 +32,9 @@ function CreateTableFormPage() {
     }
 
     return (
-        <div>
-            <h1>Add Table</h1>
+        <section className="page"><header className="page-header"><div><h1>Add Table</h1><p>Configure seating capacity and restaurant section.</p></div></header>
             <TableForm mode="create" onSubmit={handleSubmit} isSubmitting={createTable.isPending} />
-        </div>
+        </section>
     )
 }
 
@@ -64,14 +63,13 @@ function EditTableFormPage({ tableId }: { tableId: string }) {
     }
 
     return (
-        <div>
-            <h1>Edit Table</h1>
+        <section className="page"><header className="page-header"><div><h1>Edit Table</h1><p>Update this table's capacity and section.</p></div></header>
             <TableForm
                 mode="edit"
                 initialValues={tableQuery.data}
                 onSubmit={handleSubmit}
                 isSubmitting={updateTable.isPending}
             />
-        </div>
+        </section>
     )
 }

@@ -7,11 +7,11 @@ export function TableManagementPage() {
     const tablesQuery = useTables()
 
     return (
-        <div className="admin-dashboard">
+        <section className="admin-dashboard page">
             <div className="admin-dashboard__header">
                 <h1>Table Management</h1>
-                <Link to="/admin/tables/new" className="admin-dashboard__create-link">
-                    + Add table
+                <Link to="/admin/tables/new" className="primary-button">
+                    Add table
                 </Link>
             </div>
 
@@ -19,12 +19,12 @@ export function TableManagementPage() {
             {tablesQuery.isError && <p role="alert">Failed to load tables: {tablesQuery.error.message}</p>}
 
             {tablesQuery.data && (
-                <ul className="admin-dashboard__list">
+                <ul className="admin-dashboard__list panel">
                     {tablesQuery.data.map(table => (
                         <TableListItem key={table.id} table={table} />
                     ))}
                 </ul>
             )}
-        </div>
+        </section>
     )
 }

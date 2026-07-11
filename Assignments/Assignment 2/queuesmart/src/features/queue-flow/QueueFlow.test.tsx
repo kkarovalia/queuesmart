@@ -51,7 +51,7 @@ const renderFlow = () => render(
 const joinDinnerWaitlist = async () => {
     const user = userEvent.setup()
     renderFlow()
-    await user.selectOptions(screen.getByLabelText(/select service/i), 'dinner-waitlist')
+    await user.selectOptions(screen.getByLabelText(/select service/i), 'svc-1')
     await user.click(screen.getByRole('button', { name: '4' }))
     await user.click(screen.getByRole('button', { name: /join waitlist/i }))
     return user
@@ -64,26 +64,26 @@ describe('Kashf user queue flow', () => {
         expect(screen.getByRole('option', { name: 'Dinner Waitlist' })).toBeInTheDocument()
         expect(screen.getByRole('option', { name: 'Bar Seating' })).toBeInTheDocument()
         expect(screen.getByRole('option', { name: 'Patio Seating' })).toBeInTheDocument()
-        expect(screen.getByRole('option', { name: 'Private Dining' })).toBeInTheDocument()
-        expect(screen.getByText(/current queue length/i)).toBeInTheDocument()
-        expect(screen.getByText(/estimated wait/i)).toBeInTheDocument()
+        expect(screen.getByRole('option', { name: 'Private Dining - Closed' })).toBeInTheDocument()
+        expect(screen.getByText(/parties ahead/i)).toBeInTheDocument()
+        expect(screen.getByText(/current wait/i)).toBeInTheDocument()
     })
 
     it('joins a queue and shows the next queue position', async () => {
         const user = await joinDinnerWaitlist()
 
-        expect(screen.getByText(/you joined dinner waitlist/i)).toBeInTheDocument()
+        expect(screen.getByText(/you're on the dinner waitlist/i)).toBeInTheDocument()
         await user.click(screen.getByRole('button', { name: /queue status/i }))
 
-        expect(screen.getByRole('heading', { name: /dinner waitlist status/i })).toBeInTheDocument()
-        expect(screen.getByText(/position 13/i)).toBeInTheDocument()
-        expect(screen.getByRole('status', { name: /waiting/i })).toBeInTheDocument()
+        expect(screen.getByRole('heading', { name: /dinner waitlist/i })).toBeInTheDocument()
+        expect(screen.getByText('13')).toBeInTheDocument()
+        expect(screen.getByRole('status')).toHaveTextContent(/waiting/i)
     })
 
     it('leaves the queue and clears the active queue status', async () => {
         const user = await joinDinnerWaitlist()
 
-        await user.click(screen.getByRole('button', { name: /leave queue/i }))
+        await user.click(screen.getByRole('button', { name: /leave current queue/i }))
         await user.click(screen.getByRole('button', { name: /queue status/i }))
 
         expect(screen.getByRole('heading', { name: /no active waitlist/i })).toBeInTheDocument()
@@ -93,12 +93,12 @@ describe('Kashf user queue flow', () => {
         const user = await joinDinnerWaitlist()
 
         await user.click(screen.getByRole('button', { name: /queue status/i }))
-        await user.click(screen.getByRole('button', { name: /advance status/i }))
-        expect(screen.getByRole('status', { name: /almost ready/i })).toBeInTheDocument()
+        await user.click(screen.getByRole('button', { name: /refresh status/i }))
+        expect(screen.getByRole('status')).toHaveTextContent(/almost ready/i)
 
-        await user.click(screen.getByRole('button', { name: /advance status/i }))
-        expect(screen.getByRole('status', { name: /served/i })).toBeInTheDocument()
-        expect(screen.getByText(/your table is ready/i)).toBeInTheDocument()
+        await user.click(screen.getByRole('button', { name: /refresh status/i }))
+        expect(screen.getByRole('status')).toHaveTextContent(/table ready/i)
+        expect(screen.getByText(/please check in with the host stand/i)).toBeInTheDocument()
     })
 
     it('renders notifications and marks them read', async () => {
@@ -106,10 +106,10 @@ describe('Kashf user queue flow', () => {
 
         await user.click(screen.getByRole('button', { name: /notifications/i }))
         expect(screen.getByText(/you joined the waitlist/i)).toBeInTheDocument()
-        expect(screen.getByText(/unread notifications: 1/i)).toBeInTheDocument()
+        expect(screen.getByText(/2 unread/i)).toBeInTheDocument()
 
         await user.click(screen.getByRole('button', { name: /mark all read/i }))
-        expect(screen.getByText(/unread notifications: 0/i)).toBeInTheDocument()
+        expect(screen.getByText(/0 unread/i)).toBeInTheDocument()
         expect(screen.getByText(/all notifications read/i)).toBeInTheDocument()
     })
 })

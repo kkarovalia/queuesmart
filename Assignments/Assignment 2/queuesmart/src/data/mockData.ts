@@ -11,28 +11,45 @@ import type {
 export const mockServices: Service[] = [
     {
         id: 'svc-1',
-        name: 'Dinner Reservations',
-        description: 'Table reservations for the main dining room.',
-        expectedDurationMinutes: 60,
+        name: 'Dinner Waitlist',
+        description: 'General dining room seating for walk-in guests.',
+        expectedDurationMinutes: 45,
         priority: 'high',
         status: 'open',
     },
     {
         id: 'svc-2',
-        name: 'Walk-in Waitlist',
-        description: 'First-come, first-served seating for walk-in guests.',
-        expectedDurationMinutes: 45,
+        name: 'Bar Seating',
+        description: 'First-come bar seats for smaller parties.',
+        expectedDurationMinutes: 30,
         priority: 'medium',
         status: 'open',
+    },
+    {
+        id: 'svc-3',
+        name: 'Patio Seating',
+        description: 'Outdoor seating when weather and capacity allow.',
+        expectedDurationMinutes: 40,
+        priority: 'medium',
+        status: 'open',
+    },
+    {
+        id: 'svc-4',
+        name: 'Private Dining',
+        description: 'Private room seating for larger parties and special events.',
+        expectedDurationMinutes: 120,
+        priority: 'high',
+        status: 'closed',
     },
 ]
 
 export const mockQueueEntries: QueueEntry[] = [
-    { id: 'q-1', serviceId: 'svc-1', customerName: 'Alice Chen', joinedAt: '2026-07-09T17:15:00Z' },
-    { id: 'q-2', serviceId: 'svc-1', customerName: 'Marcus Ortiz', joinedAt: '2026-07-09T17:20:00Z' },
-    { id: 'q-3', serviceId: 'svc-1', customerName: 'Priya Patel', joinedAt: '2026-07-09T17:25:00Z' },
-    { id: 'q-4', serviceId: 'svc-2', customerName: 'Sam Rivera', joinedAt: '2026-07-09T17:05:00Z' },
-    { id: 'q-5', serviceId: 'svc-2', customerName: 'Jordan Lee', joinedAt: '2026-07-09T17:10:00Z' },
+    { id: 'q-1', serviceId: 'svc-1', customerName: 'Emily Johnson', partySize: 4, estimatedWaitMinutes: 42, joinedAt: '2026-07-10T18:12:00Z' },
+    { id: 'q-2', serviceId: 'svc-1', customerName: 'Maya Patel', partySize: 2, estimatedWaitMinutes: 37, joinedAt: '2026-07-10T18:17:00Z' },
+    { id: 'q-3', serviceId: 'svc-1', customerName: 'Carlos Ramirez', partySize: 3, estimatedWaitMinutes: 33, joinedAt: '2026-07-10T18:21:00Z' },
+    { id: 'q-4', serviceId: 'svc-1', customerName: 'Sarah Kim', partySize: 4, estimatedWaitMinutes: 29, joinedAt: '2026-07-10T18:25:00Z' },
+    { id: 'q-5', serviceId: 'svc-2', customerName: 'David Brown', partySize: 2, estimatedWaitMinutes: 18, joinedAt: '2026-07-10T18:29:00Z' },
+    { id: 'q-6', serviceId: 'svc-3', customerName: 'Olivia Martin', partySize: 3, estimatedWaitMinutes: 12, joinedAt: '2026-07-10T18:31:00Z' },
 ]
 
 export const mockTables: Table[] = [
@@ -47,6 +64,14 @@ export const mockTables: Table[] = [
 ]
 
 export const mockReservations: Reservation[] = [
+    {
+        id: 'res-user-1',
+        customerName: 'Jamie Lee',
+        partySize: 4,
+        dateTime: '2026-07-12T19:00:00',
+        tableId: 'tbl-3',
+        status: 'confirmed',
+    },
     {
         id: 'res-1',
         customerName: 'Dana Whitfield',

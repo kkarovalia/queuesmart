@@ -11,13 +11,12 @@ export type RestaurantService = {
     currentQueueLength: number
     estimatedWait: string
     tablePreferenceLabel: string
+    isOpen: boolean
 }
 
 export type QueueFormData = {
     serviceId: string
     partySize: number
-    preferredDate: string
-    preferredTime: string
     tablePreference: string
 }
 

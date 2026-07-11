@@ -2,7 +2,7 @@ import type { RestaurantService } from '../types/queue'
 
 export const restaurantServices: RestaurantService[] = [
     {
-        id: 'dinner-waitlist',
+        id: 'svc-1',
         name: 'Dinner Waitlist',
         description: 'General dining room seating for walk-in guests.',
         expectedDurationMinutes: 45,
@@ -10,9 +10,10 @@ export const restaurantServices: RestaurantService[] = [
         currentQueueLength: 12,
         estimatedWait: '35-45 min',
         tablePreferenceLabel: 'Dining room',
+        isOpen: true,
     },
     {
-        id: 'bar-seating',
+        id: 'svc-2',
         name: 'Bar Seating',
         description: 'First-come bar seats for smaller parties.',
         expectedDurationMinutes: 30,
@@ -20,9 +21,10 @@ export const restaurantServices: RestaurantService[] = [
         currentQueueLength: 6,
         estimatedWait: '15-20 min',
         tablePreferenceLabel: 'Bar counter',
+        isOpen: true,
     },
     {
-        id: 'patio-seating',
+        id: 'svc-3',
         name: 'Patio Seating',
         description: 'Outdoor seating when weather and capacity allow.',
         expectedDurationMinutes: 40,
@@ -30,16 +32,18 @@ export const restaurantServices: RestaurantService[] = [
         currentQueueLength: 4,
         estimatedWait: '10-15 min',
         tablePreferenceLabel: 'Covered patio',
+        isOpen: true,
     },
     {
-        id: 'private-dining',
+        id: 'svc-4',
         name: 'Private Dining',
         description: 'Private room bookings for larger or special parties.',
         expectedDurationMinutes: 120,
         priority: 'high',
         currentQueueLength: 0,
-        estimatedWait: 'Reservation only',
+        estimatedWait: 'Closed',
         tablePreferenceLabel: 'Private room',
+        isOpen: false,
     },
 ]
 

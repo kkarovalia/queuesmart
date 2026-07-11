@@ -18,7 +18,7 @@ export function ReservationListItem({ reservation, table }: ReservationListItemP
     })
 
     return (
-        <li className="service-list-item">
+        <li className="service-list-item management-list-item">
             <div className="service-list-item__info">
                 <div className="service-list-item__heading">
                     <span className="service-list-item__name">{reservation.customerName}</span>
@@ -30,11 +30,11 @@ export function ReservationListItem({ reservation, table }: ReservationListItemP
                     {!table && <> &middot; No table assigned</>}
                 </p>
             </div>
-            <div className="service-list-item__actions">
-                <Link to="/admin/reservations/$reservationId/edit" params={{ reservationId: reservation.id }}>
+            <div className="management-list-item__actions">
+                <Link className="secondary-button" to="/admin/reservations/$reservationId/edit" params={{ reservationId: reservation.id }}>
                     Edit
                 </Link>
-                <button
+                <button className="danger-button"
                     type="button"
                     onClick={() => cancelReservation.mutate(reservation.id)}
                     disabled={!isCancellable || cancelReservation.isPending}

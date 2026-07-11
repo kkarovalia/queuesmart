@@ -9,6 +9,7 @@ interface ServiceFormProps {
     initialValues: ServiceFormInput
     onSubmit: (values: ServiceFormInput) => void
     isSubmitting: boolean
+    submitLabel?: string
 }
 
 function toFormValues(input: ServiceFormInput): ServiceFormValues {
@@ -20,7 +21,7 @@ function toFormValues(input: ServiceFormInput): ServiceFormValues {
     }
 }
 
-export function ServiceForm({ initialValues, onSubmit, isSubmitting }: ServiceFormProps) {
+export function ServiceForm({ initialValues, onSubmit, isSubmitting, submitLabel = 'Save changes' }: ServiceFormProps) {
     const [values, setValues] = useState<ServiceFormValues>(() => toFormValues(initialValues))
     const [errors, setErrors] = useState<ServiceFormErrors>({})
 
@@ -90,8 +91,8 @@ export function ServiceForm({ initialValues, onSubmit, isSubmitting }: ServiceFo
                 </select>
             </div>
 
-            <button type="submit" disabled={isSubmitting}>
-                Save changes
+            <button className="primary-button" type="submit" disabled={isSubmitting}>
+                {submitLabel}
             </button>
         </form>
     )

@@ -17,8 +17,8 @@ export function HistoryPage() {
     const visibleRows = filter === 'all' ? history : history.filter((row) => row.outcome === filter)
 
     return (
-        <div className="history-page">
-            <h1>My History</h1>
+        <section className="history-page page">
+            <header className="page-header"><div><h1>My History</h1><p>Past waitlists and seating outcomes.</p></div></header>
 
             <div className="history-page__filter">
                 <label htmlFor="outcome-filter">Filter by outcome:</label>
@@ -34,7 +34,7 @@ export function HistoryPage() {
                 </select>
             </div>
 
-            <div className="history-page__card">
+            <div className="history-page__card panel table-wrap">
                 {visibleRows.length === 0 ? (
                     <p className="history-page__empty">No history matches that filter.</p>
                 ) : (
@@ -66,6 +66,6 @@ export function HistoryPage() {
                     </table>
                 )}
             </div>
-        </div>
+        </section>
     )
 }

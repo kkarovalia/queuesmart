@@ -456,6 +456,8 @@ async function addQueueEntry({ serviceId, customerName, insertAtFront }: AddQueu
         serviceId,
         customerName,
         joinedAt: new Date().toISOString(),
+        partySize: 2,
+        estimatedWaitMinutes: insertAtFront ? 5 : 30,
     };
 
     if (insertAtFront) {

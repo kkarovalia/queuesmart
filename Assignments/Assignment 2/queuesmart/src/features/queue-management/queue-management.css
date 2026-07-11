@@ -1,50 +1,20 @@
-.queue-management__toolbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 1rem;
-    margin-bottom: 1.25rem;
-}
+.queue-management__header-actions { display: flex; flex-wrap: wrap; gap: .45rem; }
+.queue-management__add { padding: 1rem; margin-bottom: .75rem; }
+.queue-management__add label { display: block; font-size: .78rem; font-weight: 700; margin-bottom: .4rem; }
+.queue-management__add > div { display: flex; gap: .5rem; }
+.queue-management__add input { flex: 1; min-width: 0; min-height: 40px; border: 1px solid #cdd4dc; border-radius: 6px; padding: .6rem .75rem; }
+.queue-management__notice { color: var(--green); background: var(--green-soft); border-radius: 6px; padding: .65rem .8rem; font-size: .8rem; }
+.queue-management__table { overflow-x: auto; }
+.queue-management__table ol { list-style: none; padding: 0; margin: 0; }
+.queue-row { min-width: 760px; display: grid; grid-template-columns: 38px minmax(180px, 1fr) 70px 90px 100px 128px; align-items: center; gap: .5rem; padding: .75rem .8rem; font-size: .82rem; }
+.queue-row + .queue-row { border-top: 1px solid #e8ebef; }
+.queue-row--head { color: var(--muted); font-size: .68rem; font-weight: 750; text-transform: uppercase; background: #f8fafb; border-bottom: 1px solid var(--border); }
+.queue-row > span:nth-child(n+3):nth-child(-n+5) { color: var(--muted); }
+.queue-row__position { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 4px; background: var(--teal-soft); color: var(--teal-dark); font-weight: 800; }
+.queue-row strong { display: block; }
+.queue-row small { color: var(--amber); }
+.queue-row__actions { display: flex; gap: .3rem; }
+.queue-row__actions .icon-button { width: 32px; min-height: 32px; }
+.queue-row__remove { color: var(--red); border-color: #efb8bd; }
 
-.queue-management__toolbar-actions {
-    display: flex;
-    gap: 0.5rem;
-}
-
-.queue-management__add-entry {
-    display: flex;
-    align-items: flex-end;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-    margin-bottom: 1.5rem;
-    padding: 0.85rem 1rem;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-}
-
-.queue-management__add-entry-field {
-    display: flex;
-    flex-direction: column;
-    gap: 0.3rem;
-}
-
-.queue-management__add-entry-field label {
-    font-weight: 600;
-    font-size: 0.85rem;
-}
-
-.queue-management__add-entry-field input {
-    padding: 0.4rem 0.6rem;
-    min-width: 220px;
-}
-
-.queue-management__add-entry-buttons {
-    display: flex;
-    gap: 0.5rem;
-}
-
-.service-list-item__pending-tag {
-    color: #7a6a00;
-    font-size: 0.85rem;
-}
+@media (max-width: 680px) { .queue-management__header-actions { width: 100%; } .queue-management__add > div { align-items: stretch; flex-direction: column; } }

@@ -22,6 +22,8 @@ export interface QueueEntry {
     serviceId: string
     customerName: string
     joinedAt: string
+    partySize: number
+    estimatedWaitMinutes: number
 }
 
 export interface QueueEntryFormInput {

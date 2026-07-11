@@ -10,7 +10,7 @@ import { routeTree } from './routeTree.gen'
 // the check that would have caught the blank-white-page bug from
 // earlier in the project (build succeeded, page didn't render).
 describe('app boots', () => {
-    it('renders the home page at /', async () => {
+    it('redirects the home page to login', async () => {
         const router = createRouter({ routeTree })
         const qc = new QueryClient()
 
@@ -21,7 +21,7 @@ describe('app boots', () => {
         )
 
         await waitFor(() => {
-            expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument()
+            expect(screen.getByRole('heading', { name: /welcome back/i })).toBeInTheDocument()
         }, { timeout: 8000 })
     }, 15000)
 
@@ -37,7 +37,7 @@ describe('app boots', () => {
         )
 
         await waitFor(() => {
-            expect(screen.getByText(/available services/i)).toBeInTheDocument()
+            expect(screen.getByText(/popular services/i)).toBeInTheDocument()
         }, { timeout: 8000 })
     }, 15000)
 })

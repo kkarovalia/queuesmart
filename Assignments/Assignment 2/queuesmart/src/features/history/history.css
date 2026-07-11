@@ -1,57 +1,13 @@
-.history-page__filter {
-    margin-bottom: 0.75rem;
-    font-size: 0.9rem;
-}
+.history-page__filter { display: flex; align-items: center; justify-content: flex-end; gap: .5rem; margin-bottom: .75rem; font-size: .82rem; color: var(--muted); }
+.history-page__filter select { min-height: 38px; padding: .45rem .7rem; border: 1px solid var(--border); border-radius: 6px; background: #fff; color: var(--ink); }
+.history-page__card { padding: .5rem; }
+.history-page__empty { color: var(--muted); padding: 1rem; }
+.history-page__table { width: 100%; min-width: 620px; border-collapse: collapse; }
+.history-page__table th, .history-page__table td { text-align: left; padding: .8rem .7rem; border-bottom: 1px solid #e8ebef; font-size: .84rem; }
+.history-page__table th { color: var(--muted); text-transform: uppercase; font-size: .7rem; }
+.history-page__outcome { display: inline-block; padding: .22rem .5rem; border-radius: 4px; font-size: .7rem; font-weight: 700; text-transform: capitalize; }
+.history-page__outcome--seated { background: var(--green-soft); color: var(--green); }
+.history-page__outcome--cancelled { background: #eef1f4; color: var(--muted); }
+.history-page__outcome--no-show { background: var(--red-soft); color: var(--red); }
 
-.history-page__filter select {
-    margin-left: 0.5rem;
-    padding: 0.3rem 0.5rem;
-    border: 1px solid #e0e0e0;
-    border-radius: 6px;
-}
-
-.history-page__card {
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
-    padding: 1.25rem;
-}
-
-.history-page__empty {
-    color: #666;
-}
-
-.history-page__table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
-.history-page__table th,
-.history-page__table td {
-    text-align: left;
-    padding: 0.5rem 0.35rem;
-    border-bottom: 1px solid #e0e0e0;
-    font-size: 0.9rem;
-}
-
-.history-page__outcome {
-    display: inline-block;
-    padding: 0.15rem 0.6rem;
-    border-radius: 999px;
-    font-size: 0.75rem;
-    font-weight: 600;
-}
-
-.history-page__outcome--seated {
-    background-color: #d1f7dc;
-    color: #12703b;
-}
-
-.history-page__outcome--cancelled {
-    background-color: #e7ecf5;
-    color: #3a4d75;
-}
-
-.history-page__outcome--no-show {
-    background-color: #fbdada;
-    color: #9c1f1f;
-}
+@media (max-width: 520px) { .history-page__filter { justify-content: flex-start; } }

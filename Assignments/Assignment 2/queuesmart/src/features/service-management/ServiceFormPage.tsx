@@ -32,13 +32,12 @@ export function ServiceFormPage({ serviceId }: ServiceFormPageProps) {
     }
 
     return (
-        <div>
-            <h1>Edit Service</h1>
+        <section className="page"><header className="page-header"><div><h1>Edit Service</h1><p>Update how this restaurant queue operates.</p></div></header>
             <ServiceForm
                 initialValues={serviceQuery.data}
                 onSubmit={handleSubmit}
                 isSubmitting={updateService.isPending}
             />
-        </div>
+        </section>
     )
 }

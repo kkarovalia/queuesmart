@@ -78,6 +78,11 @@ export function LoginPage() {
                 <button type="submit" className="auth-form__submit">Log in</button>
             </form>
 
+            <div className="auth-form__divider">demo access</div>
+            <button type="button" className="auth-form__admin" onClick={() => navigate({ to: '/admin' })}>
+                Continue as restaurant staff
+            </button>
+
             <p className="auth-form__footer">
                 Don't have an account? <Link to="/register">Sign up</Link>
             </p>

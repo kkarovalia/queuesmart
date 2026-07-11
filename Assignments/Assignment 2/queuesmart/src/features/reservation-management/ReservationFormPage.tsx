@@ -33,8 +33,7 @@ function CreateReservationFormPage() {
     }
 
     return (
-        <div>
-            <h1>Create Reservation</h1>
+        <section className="page"><header className="page-header"><div><h1>Create Reservation</h1><p>Add a future booking for a restaurant guest.</p></div></header>
             {tablesQuery.data && (
                 <ReservationForm
                     mode="create"
@@ -43,7 +42,7 @@ function CreateReservationFormPage() {
                     isSubmitting={createReservation.isPending}
                 />
             )}
-        </div>
+        </section>
     )
 }
 
@@ -73,8 +72,7 @@ function EditReservationFormPage({ reservationId }: { reservationId: string }) {
     }
 
     return (
-        <div>
-            <h1>Edit Reservation</h1>
+        <section className="page"><header className="page-header"><div><h1>Edit Reservation</h1><p>Update this booking's guest, time, or table.</p></div></header>
             <ReservationForm
                 mode="edit"
                 initialValues={reservationQuery.data}
@@ -82,6 +80,6 @@ function EditReservationFormPage({ reservationId }: { reservationId: string }) {
                 onSubmit={handleSubmit}
                 isSubmitting={updateReservation.isPending}
             />
-        </div>
+        </section>
     )
 }

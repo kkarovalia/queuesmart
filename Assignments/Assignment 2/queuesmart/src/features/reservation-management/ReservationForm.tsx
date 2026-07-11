@@ -109,7 +109,7 @@ export function ReservationForm({ mode, initialValues, tables, onSubmit, isSubmi
                 </select>
             </div>
 
-            <button type="submit" disabled={isSubmitting}>
+            <button className="primary-button" type="submit" disabled={isSubmitting}>
                 {mode === 'create' ? 'Create reservation' : 'Save changes'}
             </button>
         </form>

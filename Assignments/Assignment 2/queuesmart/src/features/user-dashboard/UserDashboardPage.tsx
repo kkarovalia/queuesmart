@@ -1,85 +1,43 @@
 import { Link } from '@tanstack/react-router'
-import { useServices, useMyQueueStatus, useNotifications } from '../../api'
-import { StatusBadge } from '../../ui/StatusBadge'
+import { Bell, CalendarDays, Clock3, UsersRound } from 'lucide-react'
+import { useReservations, useTables } from '../../api'
+import { restaurantServices } from '../../data/mockQueueData'
+import { useQueueFlow } from '../queue-flow/useQueueFlow'
 import './user-dashboard.css'
 
 export function UserDashboardPage() {
-    const servicesQuery = useServices()
-    const myQueueQuery = useMyQueueStatus()
-    const notificationsQuery = useNotifications()
+    const { activeQueue, notifications } = useQueueFlow()
+    const reservations = useReservations().data ?? []
+    const tables = useTables().data ?? []
+    const upcoming = reservations.find(item => item.customerName === 'Jamie Lee' && item.status === 'confirmed')
+    const upcomingTable = tables.find(table => table.id === upcoming?.tableId)
+    const unread = notifications.filter(note => !note.read)
 
-    if (servicesQuery.isLoading) {
-        return <p>Loading dashboard...</p>
-    }
+    return <section className="user-dashboard page">
+        <header className="page-header"><div><h1>Good evening, Jamie!</h1><p>Here's what's happening at Bistro 42.</p></div><Link to="/notifications" className="dashboard-bell" aria-label={`${unread.length} unread notifications`}><Bell size={19} />{unread.length > 0 ? <b>{unread.length}</b> : null}</Link></header>
 
-    const services = servicesQuery.data ?? []
-    const myQueue = myQueueQuery.data ?? null
-    const myService = services.find((s) => s.id === myQueue?.serviceId)
-    const notifications = notificationsQuery.data ?? []
-    const unreadCount = notifications.filter((n) => !n.read).length
+        <div className="dashboard-overview">
+            <article className="dashboard-focus-panel">
+                <span className="dashboard-label">Current queue</span>
+                {activeQueue ? <>
+                    <h2>{activeQueue.serviceName}</h2>
+                    <div className="dashboard-queue-stats"><div><strong>{activeQueue.position}</strong><span>parties ahead</span></div><div><strong>{activeQueue.estimatedWait}</strong><span>estimated wait</span></div></div>
+                    <Link to="/queue-status" className="primary-button">View my queue</Link>
+                </> : <div className="dashboard-empty"><UsersRound /><h2>Not currently in line</h2><p>Choose an open service when you're ready.</p><Link to="/join-queue" className="primary-button">View open queues</Link></div>}
+            </article>
 
-    return (
-        <div className="user-dashboard">
-            <h1>Good evening!</h1>
-
-            <div className="user-dashboard__card">
-                <h2>Your current queue</h2>
-                {myQueue && myService ? (
-                    <div className="user-dashboard__queue-row">
-                        <div>
-                            <div className="user-dashboard__queue-name">{myService.name}</div>
-                            <div className="user-dashboard__queue-meta">
-                                Position {myQueue.position} &middot; Party of {myQueue.partySize}
-                            </div>
-                        </div>
-                        <div className="user-dashboard__queue-wait">
-                            <span className="user-dashboard__wait-pill">~{myQueue.estimatedWaitMinutes} min wait</span>
-                            <div>
-                                <Link to="/queue-status">View status &rarr;</Link>
-                            </div>
-                        </div>
-                    </div>
-                ) : (
-                    <p className="user-dashboard__empty">You're not in a queue right now.</p>
-                )}
-            </div>
-
-            <div className="user-dashboard__card">
-                <h2>Available services</h2>
-                <table className="user-dashboard__table">
-                    <thead>
-                        <tr>
-                            <th>Service</th>
-                            <th>Status</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {services.map((service) => (
-                            <tr key={service.id}>
-                                <td>{service.name}</td>
-                                <td><StatusBadge kind="status" value={service.status} /></td>
-                                <td><Link to="/join-queue">Join</Link></td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-
-            <div className="user-dashboard__card">
-                <div className="user-dashboard__notif-header">
-                    <h2>Notifications</h2>
-                    {unreadCount > 0 && <span className="user-dashboard__unread-pill">{unreadCount} new</span>}
-                </div>
-                <ul className="user-dashboard__notif-list">
-                    {notifications.slice(0, 3).map((note) => (
-                        <li key={note.id}>
-                            <strong>{note.title}</strong> - {note.body}
-                        </li>
-                    ))}
-                </ul>
-                <Link to="/notifications">View all notifications &rarr;</Link>
-            </div>
+            <article className="dashboard-focus-panel">
+                <span className="dashboard-label">Upcoming reservation</span>
+                {upcoming ? <><h2>{new Date(upcoming.dateTime).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</h2><div className="dashboard-reservation-time"><CalendarDays /><strong>{new Date(upcoming.dateTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</strong></div><p>Party of {upcoming.partySize} · {upcomingTable?.label ?? 'Table assigned soon'}</p><Link to="/reservations" className="secondary-button">View reservation</Link></> : <div className="dashboard-empty"><CalendarDays /><h2>No upcoming booking</h2><p>Reserve a table for a future visit.</p><Link to="/reservations" className="secondary-button">Book a table</Link></div>}
+            </article>
         </div>
-    )
+
+        <section className="dashboard-section"><div className="dashboard-section__header"><div><h2>Popular services</h2><p>Join a walk-in waitlist</p></div></div>
+            <div className="service-grid">{restaurantServices.slice(0, 3).map(service => <article className="service-tile" key={service.id}><div><h3>{service.name}</h3><span className={service.isOpen ? 'service-open' : 'service-closed'}>{service.isOpen ? 'Open' : 'Closed'}</span></div><div className="service-tile__wait"><Clock3 size={17} /><strong>{service.estimatedWait}</strong></div><p>{service.currentQueueLength} parties waiting</p><Link to="/join-queue">Join <span aria-hidden="true">→</span></Link></article>)}</div>
+        </section>
+
+        <section className="dashboard-section"><div className="dashboard-section__header"><div><h2>Notifications</h2><p>Recent updates</p></div><Link to="/notifications">View all</Link></div>
+            <div className="dashboard-notifications">{notifications.slice(0, 3).map(note => <article key={note.id} className={note.read ? '' : 'is-unread'}><Bell size={16} /><div><strong>{note.title}</strong><p>{note.message}</p></div><time>{note.createdAt}</time></article>)}</div>
+        </section>
+    </section>
 }

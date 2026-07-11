@@ -11,7 +11,7 @@ export function TableListItem({ table }: TableListItemProps) {
     const deleteTable = useDeleteTable()
 
     return (
-        <li className="service-list-item">
+        <li className="service-list-item management-list-item">
             <div className="service-list-item__info">
                 <div className="service-list-item__heading">
                     <span className="service-list-item__name">{table.label}</span>
@@ -21,11 +21,11 @@ export function TableListItem({ table }: TableListItemProps) {
                     {table.section} &middot; Seats {table.seats}
                 </p>
             </div>
-            <div className="service-list-item__actions">
-                <Link to="/admin/tables/$tableId/edit" params={{ tableId: table.id }}>
+            <div className="management-list-item__actions">
+                <Link className="secondary-button" to="/admin/tables/$tableId/edit" params={{ tableId: table.id }}>
                     Edit
                 </Link>
-                <button
+                <button className="danger-button"
                     type="button"
                     onClick={() => deleteTable.mutate(table.id)}
                     disabled={deleteTable.isPending || table.status === 'occupied'}
