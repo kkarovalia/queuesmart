@@ -1,9 +1,30 @@
 // Try to keep all api calls in here for convenience and organization
 // All stubs should be replaced with requests for assignment 3
 
-import { useQuery, useMutation, useQueryClient, type UseQueryResult, type UseMutationResult } from '@tanstack/react-query';
-import type { Service, ServiceFormInput, Table, TableFormInput, Reservation, ReservationFormInput } from './contracts/types';
-import { mockServices, mockQueueEntries, mockTables, mockReservations } from './data/mockData';
+import {
+    useQuery,
+    useMutation,
+    useQueryClient,
+    type UseQueryResult,
+    type UseMutationResult
+} from '@tanstack/react-query';
+
+import type {
+    Service,
+    ServiceFormInput,
+    Table,
+    TableFormInput,
+    Reservation,
+    ReservationFormInput,
+    QueueEntry,
+} from './contracts/types';
+
+import {
+    mockServices,
+    mockQueueEntries,
+    mockTables,
+    mockReservations
+} from './data/mockData';
 
 interface User {
     id: string;
@@ -351,6 +372,117 @@ export function useCancelReservation(): CancelReservationMutation {
         mutationFn: cancelReservation,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['reservations'] });
+        },
+    })
+}
+
+// --- Queue Management ---
+
+// Note: This should be fine grained by service id on the backend to avoid large payloads
+async function fetchQueueEntries(serviceId: string): Promise<QueueEntry[]> {
+    await new Promise(r => setTimeout(r, FAKE_DELAY_MS));
+    return mockQueueEntries.filter((entry) => entry.serviceId === serviceId);
+}
+
+export type QueueEntriesQuery = UseQueryResult<NoInfer<QueueEntry[] | null>, Error>;
+
+export function useQueueEntries(serviceId: string): QueueEntriesQuery {
+    return useQuery({
+        queryKey: ['queueEntries', serviceId],
+        queryFn: () => fetchQueueEntries(serviceId),
+        staleTime: 60 * 1000,
+    })
+}
+
+interface ReorderQueueEntriesArgs {
+    serviceId: string;
+    entries: QueueEntry[];
+}
+
+async function reorderQueueEntries({ serviceId, entries }: ReorderQueueEntriesArgs): Promise<QueueEntry[]> {
+    await new Promise(r => setTimeout(r, FAKE_DELAY_MS));
+    const otherEntries = mockQueueEntries.filter(e => e.serviceId !== serviceId);
+    mockQueueEntries.length = 0;
+    mockQueueEntries.push(...otherEntries, ...entries);
+    return entries;
+}
+
+export type ReorderQueueEntriesMutation = UseMutationResult<NoInfer<QueueEntry[]>, Error, QueueEntry[]>;
+
+export function useReorderQueueEntries(serviceId: string): ReorderQueueEntriesMutation {
+    const queryClient = useQueryClient();
+    const queryKey = ['queueEntries', serviceId];
+
+    return useMutation({
+        mutationFn: (entries: QueueEntry[]) => reorderQueueEntries({ serviceId, entries }),
+        onMutate: async (entries) => {
+            await queryClient.cancelQueries({ queryKey });
+            const previous = queryClient.getQueryData<QueueEntry[]>(queryKey);
+            queryClient.setQueryData(queryKey, entries);
+            return { previous };
+        },
+        onError: (_err, _entries, context) => {
+            if (context?.previous) {
+                queryClient.setQueryData(queryKey, context.previous);
+            }
+        },
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey });
+        },
+    })
+}
+
+interface AddQueueEntryArgs {
+    serviceId: string;
+    customerName: string;
+    insertAtFront: boolean;
+}
+
+async function addQueueEntry({ serviceId, customerName, insertAtFront }: AddQueueEntryArgs): Promise<QueueEntry> {
+    await new Promise(r => setTimeout(r, FAKE_DELAY_MS));
+    const maxIdNum = mockQueueEntries.reduce((max, entry) => {
+        const match = entry.id.match(/^q-(\d+)$/);
+        return match ? Math.max(max, Number(match[1])) : max;
+    }, 0);
+
+    const newEntry: QueueEntry = {
+        id: `q-${maxIdNum + 1}`,
+        serviceId,
+        customerName,
+        joinedAt: new Date().toISOString(),
+    };
+
+    if (insertAtFront) {
+        const firstIndexForService = mockQueueEntries.findIndex(e => e.serviceId === serviceId);
+        if (firstIndexForService === -1) {
+            mockQueueEntries.push(newEntry);
+        } else {
+            mockQueueEntries.splice(firstIndexForService, 0, newEntry);
+        }
+    } else {
+        mockQueueEntries.push(newEntry);
+    }
+
+    return newEntry;
+}
+
+interface AddQueueEntryVariables {
+    customerName: string;
+    insertAtFront: boolean;
+}
+
+export type AddQueueEntryMutation = UseMutationResult<NoInfer<QueueEntry>, Error, AddQueueEntryVariables>;
+
+export function useAddQueueEntry(serviceId: string): AddQueueEntryMutation {
+    const queryClient = useQueryClient();
+    const queryKey = ['queueEntries', serviceId];
+
+    return useMutation({
+        mutationFn: ({ customerName, insertAtFront }: AddQueueEntryVariables) =>
+            addQueueEntry({ serviceId, customerName, insertAtFront }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey });
+            queryClient.invalidateQueries({ queryKey: ['queueLengths'] });
         },
     })
 }

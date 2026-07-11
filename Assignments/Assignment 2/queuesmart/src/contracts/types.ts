@@ -24,6 +24,11 @@ export interface QueueEntry {
     joinedAt: string
 }
 
+export interface QueueEntryFormInput {
+    customerName: string
+    
+}
+
 export type TableStatus = 'available' | 'occupied'
 
 export interface Table {
