@@ -1,7 +1,11 @@
 import { Link, Outlet } from '@tanstack/react-router'
+import { useQueueFlow } from '../features/queue-flow/useQueueFlow'
 import './AppShell.css'
 
 export function AppShell() {
+    const { notifications } = useQueueFlow()
+    const unreadCount = notifications.filter((notification) => !notification.read).length
+
     return (
         <div className="app-shell">
             <header className="app-shell__header">
@@ -18,6 +22,15 @@ export function AppShell() {
                     </Link>
                     <Link to="/admin/tables" activeProps={{ className: 'is-active' }}>
                         Tables
+                    </Link>
+                    <Link to="/join-queue" activeProps={{ className: 'is-active' }}>
+                        Join Queue
+                    </Link>
+                    <Link to="/queue-status" activeProps={{ className: 'is-active' }}>
+                        Queue Status
+                    </Link>
+                    <Link to="/notifications" activeProps={{ className: 'is-active' }}>
+                        Notifications{unreadCount > 0 ? ` (${unreadCount})` : ''}
                     </Link>
                 </nav>
             </header>
