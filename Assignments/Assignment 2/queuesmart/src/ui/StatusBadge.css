@@ -1,0 +1,39 @@
+.status-badge {
+    display: inline-block;
+    padding: 0.15rem 0.6rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.4;
+    white-space: nowrap;
+}
+
+.status-badge--status-open {
+    background-color: #d1f7dc;
+    color: #12703b;
+}
+
+.status-badge--status-closed {
+    background-color: #f3e3e3;
+    color: #8a2b2b;
+}
+
+.status-badge--status-medium {
+    background-color: #e7ecf5;
+    color: #3a4d75;
+}
+
+.status-badge--priority-low {
+    background-color: #e7ecf5;
+    color: #3a4d75;
+}
+
+.status-badge--priority-medium {
+    background-color: #fdecc8;
+    color: #8a5a12;
+}
+
+.status-badge--priority-high {
+    background-color: #fbdada;
+    color: #9c1f1f;
+}
