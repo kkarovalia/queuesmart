@@ -1,18 +1,13 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { QueueManagementPage } from '../../../features/queue-management/QueueManagementPage'
 
-// Stub for Ian's Queue Management feature (features/queue-management).
-// Swap this component body out once that feature is built; the URL and the
-// dashboard's "View queue" link already point here.
 export const Route = createFileRoute('/admin/queue/$serviceId')({
-    component: QueueManagementStub,
+    component: QueueManagementComponent,
 })
 
-function QueueManagementStub() {
+function QueueManagementComponent() {
     const { serviceId } = Route.useParams()
     return (
-        <div>
-            <h1>Queue Management</h1>
-            <p>Coming soon. Service: {serviceId}</p>
-        </div>
+        <QueueManagementPage serviceId={serviceId} />
     )
 }

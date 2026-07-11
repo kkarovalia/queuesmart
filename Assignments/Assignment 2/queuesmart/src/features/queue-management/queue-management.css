@@ -1,0 +1,50 @@
+.queue-management__toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+}
+
+.queue-management__toolbar-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.queue-management__add-entry {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-bottom: 1.5rem;
+    padding: 0.85rem 1rem;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+}
+
+.queue-management__add-entry-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.queue-management__add-entry-field label {
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+
+.queue-management__add-entry-field input {
+    padding: 0.4rem 0.6rem;
+    min-width: 220px;
+}
+
+.queue-management__add-entry-buttons {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.service-list-item__pending-tag {
+    color: #7a6a00;
+    font-size: 0.85rem;
+}
