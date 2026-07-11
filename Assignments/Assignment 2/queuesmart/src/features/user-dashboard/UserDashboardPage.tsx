@@ -1,7 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { Bell, CalendarDays, Clock3, UsersRound } from 'lucide-react'
 import { useReservations, useTables } from '../../api'
-import { restaurantServices } from '../../data/mockQueueData'
+import { mockServices, mockQueueEntries } from '../../data/mockData'
 import { useQueueFlow } from '../queue-flow/useQueueFlow'
 import './user-dashboard.css'
 
@@ -33,7 +33,10 @@ export function UserDashboardPage() {
         </div>
 
         <section className="dashboard-section"><div className="dashboard-section__header"><div><h2>Popular services</h2><p>Join a walk-in waitlist</p></div></div>
-            <div className="service-grid">{restaurantServices.slice(0, 3).map(service => <article className="service-tile" key={service.id}><div><h3>{service.name}</h3><span className={service.isOpen ? 'service-open' : 'service-closed'}>{service.isOpen ? 'Open' : 'Closed'}</span></div><div className="service-tile__wait"><Clock3 size={17} /><strong>{service.estimatedWait}</strong></div><p>{service.currentQueueLength} parties waiting</p><Link to="/join-queue">Join <span aria-hidden="true">→</span></Link></article>)}</div>
+            <div className="service-grid">{mockServices.slice(0, 3).map(service => {
+                const queueLength = mockQueueEntries.filter(entry => entry.serviceId === service.id).length
+                return <article className="service-tile" key={service.id}><div><h3>{service.name}</h3><span className={service.status === 'open' ? 'service-open' : 'service-closed'}>{service.status === 'open' ? 'Open' : 'Closed'}</span></div><div className="service-tile__wait"><Clock3 size={17} /><strong>{service.estimatedWait}</strong></div><p>{queueLength} parties waiting</p><Link to="/join-queue">Join <span aria-hidden="true">→</span></Link></article>
+            })}</div>
         </section>
 
         <section className="dashboard-section"><div className="dashboard-section__header"><div><h2>Notifications</h2><p>Recent updates</p></div><Link to="/notifications">View all</Link></div>

@@ -7,7 +7,12 @@ import { NotificationsPanel } from '../notifications/NotificationsPanel'
 import { QueueStatusScreen } from '../queue-status/QueueStatusScreen'
 import { QueueFlowProvider } from './QueueFlowProvider'
 import { useQueueFlow } from './useQueueFlow'
-import { restaurantServices } from '../../data/mockQueueData'
+import { mockServices, mockQueueEntries } from '../../data/mockData'
+
+const queueLengths = mockQueueEntries.reduce<Record<string, number>>((lengths, entry) => {
+    lengths[entry.serviceId] = (lengths[entry.serviceId] ?? 0) + 1
+    return lengths
+}, {})
 
 function QueueFlowHarness() {
     const [screenName, setScreenName] = useState<'join' | 'status' | 'notifications'>('join')
@@ -22,7 +27,8 @@ function QueueFlowHarness() {
             </nav>
             {screenName === 'join' ? (
                 <JoinQueueScreen
-                    services={restaurantServices}
+                    services={mockServices}
+                    queueLengths={queueLengths}
                     activeQueue={activeQueue}
                     onJoinQueue={joinQueue}
                     onLeaveQueue={leaveQueue}
@@ -76,7 +82,7 @@ describe('Kashf user queue flow', () => {
         await user.click(screen.getByRole('button', { name: /queue status/i }))
 
         expect(screen.getByRole('heading', { name: /dinner waitlist/i })).toBeInTheDocument()
-        expect(screen.getByText('13')).toBeInTheDocument()
+        expect(screen.getByText('5')).toBeInTheDocument()
         expect(screen.getByRole('status')).toHaveTextContent(/waiting/i)
     })
 

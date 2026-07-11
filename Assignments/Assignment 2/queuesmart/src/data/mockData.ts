@@ -16,6 +16,8 @@ export const mockServices: Service[] = [
         expectedDurationMinutes: 45,
         priority: 'high',
         status: 'open',
+        estimatedWait: '35-45 min',
+        tablePreferenceLabel: 'Dining room',
     },
     {
         id: 'svc-2',
@@ -24,6 +26,8 @@ export const mockServices: Service[] = [
         expectedDurationMinutes: 30,
         priority: 'medium',
         status: 'open',
+        estimatedWait: '15-20 min',
+        tablePreferenceLabel: 'Bar counter',
     },
     {
         id: 'svc-3',
@@ -32,6 +36,8 @@ export const mockServices: Service[] = [
         expectedDurationMinutes: 40,
         priority: 'medium',
         status: 'open',
+        estimatedWait: '10-15 min',
+        tablePreferenceLabel: 'Covered patio',
     },
     {
         id: 'svc-4',
@@ -40,7 +46,18 @@ export const mockServices: Service[] = [
         expectedDurationMinutes: 120,
         priority: 'high',
         status: 'closed',
+        estimatedWait: 'Closed',
+        tablePreferenceLabel: 'Private room',
     },
+]
+
+export const tablePreferences = [
+    'No preference',
+    'Booth',
+    'Window table',
+    'Patio',
+    'Bar counter',
+    'Private room',
 ]
 
 export const mockQueueEntries: QueueEntry[] = [

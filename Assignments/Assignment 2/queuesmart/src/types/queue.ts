@@ -1,19 +1,5 @@
 export type QueueStatus = 'waiting' | 'almost-ready' | 'served'
 
-export type PriorityLevel = 'low' | 'medium' | 'high'
-
-export type RestaurantService = {
-    id: string
-    name: string
-    description: string
-    expectedDurationMinutes: number
-    priority: PriorityLevel
-    currentQueueLength: number
-    estimatedWait: string
-    tablePreferenceLabel: string
-    isOpen: boolean
-}
-
 export type QueueFormData = {
     serviceId: string
     partySize: number

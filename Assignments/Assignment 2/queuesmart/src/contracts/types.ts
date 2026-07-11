@@ -8,6 +8,9 @@ export interface Service {
     expectedDurationMinutes: number
     priority: PriorityLevel
     status: ServiceStatus
+    // Placeholder display text until a real wait-time-estimate service exists (A1 architecture calls this out as future work).
+    estimatedWait: string
+    tablePreferenceLabel: string
 }
 
 export interface ServiceFormInput {

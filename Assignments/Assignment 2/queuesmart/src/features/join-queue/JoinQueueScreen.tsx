@@ -1,11 +1,13 @@
 import { useMemo, useState } from 'react'
 import { Clock3, UsersRound } from 'lucide-react'
-import { tablePreferences } from '../../data/mockQueueData'
-import type { ActiveQueueEntry, QueueFormData, RestaurantService } from '../../types/queue'
+import { tablePreferences } from '../../data/mockData'
+import type { Service } from '../../contracts/types'
+import type { ActiveQueueEntry, QueueFormData } from '../../types/queue'
 import '../queue-flow/queue-flow.css'
 
 type JoinQueueScreenProps = {
-    services: RestaurantService[]
+    services: Service[]
+    queueLengths: Record<string, number>
     activeQueue: ActiveQueueEntry | null
     onJoinQueue: (queueForm: QueueFormData) => void
     onLeaveQueue: () => void
@@ -13,14 +15,14 @@ type JoinQueueScreenProps = {
 
 const partySizes = [1, 2, 3, 4, 5, 6]
 
-export function JoinQueueScreen({ services, activeQueue, onJoinQueue, onLeaveQueue }: JoinQueueScreenProps) {
+export function JoinQueueScreen({ services, queueLengths, activeQueue, onJoinQueue, onLeaveQueue }: JoinQueueScreenProps) {
     const [serviceId, setServiceId] = useState(services[0]?.id ?? '')
     const [partySize, setPartySize] = useState(4)
     const [tablePreference, setTablePreference] = useState(tablePreferences[0])
     const selectedService = useMemo(() => services.find(service => service.id === serviceId) ?? services[0], [serviceId, services])
 
     function submitQueue() {
-        if (selectedService?.isOpen) onJoinQueue({ serviceId: selectedService.id, partySize, tablePreference })
+        if (selectedService?.status === 'open') onJoinQueue({ serviceId: selectedService.id, partySize, tablePreference })
     }
 
     return (
@@ -33,7 +35,7 @@ export function JoinQueueScreen({ services, activeQueue, onJoinQueue, onLeaveQue
                 <div className="queue-card queue-form-card">
                     <label className="queue-field" htmlFor="service-select"><span>Select service</span>
                         <select id="service-select" value={serviceId} onChange={event => setServiceId(event.target.value)}>
-                            {services.map(service => <option key={service.id} value={service.id}>{service.name}{service.isOpen ? '' : ' - Closed'}</option>)}
+                            {services.map(service => <option key={service.id} value={service.id}>{service.name}{service.status === 'open' ? '' : ' - Closed'}</option>)}
                         </select>
                     </label>
 
@@ -51,17 +53,17 @@ export function JoinQueueScreen({ services, activeQueue, onJoinQueue, onLeaveQue
 
                     {selectedService ? <div className="queue-estimate">
                         <div><Clock3 size={18} /><span>Current wait<strong>{selectedService.estimatedWait}</strong></span></div>
-                        <div><UsersRound size={18} /><span>Parties ahead<strong>{selectedService.currentQueueLength}</strong></span></div>
+                        <div><UsersRound size={18} /><span>Parties ahead<strong>{queueLengths[selectedService.id] ?? 0}</strong></span></div>
                     </div> : null}
 
-                    <button className="queue-primary-button" type="button" onClick={submitQueue} disabled={Boolean(activeQueue) || !selectedService?.isOpen}>
-                        {activeQueue ? 'Already in a waitlist' : selectedService?.isOpen ? 'Join Waitlist' : 'Queue Closed'}
+                    <button className="queue-primary-button" type="button" onClick={submitQueue} disabled={Boolean(activeQueue) || selectedService?.status !== 'open'}>
+                        {activeQueue ? 'Already in a waitlist' : selectedService?.status === 'open' ? 'Join Waitlist' : 'Queue Closed'}
                     </button>
                     {activeQueue ? <button className="queue-secondary-button queue-danger-button" type="button" onClick={onLeaveQueue}>Leave current queue</button> : null}
                 </div>
 
                 <aside className="queue-card queue-service-summary">
-                    <span className={selectedService?.isOpen ? 'service-open' : 'service-closed'}>{selectedService?.isOpen ? 'Open' : 'Closed'}</span>
+                    <span className={selectedService?.status === 'open' ? 'service-open' : 'service-closed'}>{selectedService?.status === 'open' ? 'Open' : 'Closed'}</span>
                     <h2>{selectedService?.name}</h2>
                     <p>{selectedService?.description}</p>
                     <dl><div><dt>Expected seating cycle</dt><dd>{selectedService?.expectedDurationMinutes} min</dd></div><div><dt>Default area</dt><dd>{selectedService?.tablePreferenceLabel}</dd></div></dl>

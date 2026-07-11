@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { restaurantServices } from '../../data/mockQueueData'
+import { mockServices, mockQueueEntries } from '../../data/mockData'
 import { QueueFlowContext } from './QueueFlowContext'
 import type {
     ActiveQueueEntry,
@@ -68,17 +68,19 @@ export function QueueFlowProvider({ children }: { children: ReactNode }) {
     }
 
     const joinQueue = (queueForm: QueueFormData) => {
-        const service = restaurantServices.find((item) => item.id === queueForm.serviceId)
+        const service = mockServices.find((item) => item.id === queueForm.serviceId)
 
         if (!service) {
             return
         }
 
+        const queueLength = mockQueueEntries.filter((entry) => entry.serviceId === service.id).length
+
         setActiveQueue({
             ...queueForm,
             id: createId('queue'),
             serviceName: service.name,
-            position: service.currentQueueLength + 1,
+            position: queueLength + 1,
             estimatedWait: service.estimatedWait,
             status: 'waiting',
             joinedAt: nowLabel(),
