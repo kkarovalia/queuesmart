@@ -1,0 +1,12 @@
+{
+  "name": "queuesmart-backend",
+  "version": "1.0.0",
+  "main": "main.js",
+  "scripts": {
+    "lint": "eslint src",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "devDependencies": {
+    "eslint": "^10.7.0"
+  }
+}
