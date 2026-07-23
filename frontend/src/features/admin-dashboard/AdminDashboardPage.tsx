@@ -22,7 +22,7 @@ export function AdminDashboardPage() {
             <article><Clock3 /><span>Average duration<strong>{averageWait}</strong><small>minutes</small></span></article>
             <article><CalendarDays /><span>Reservations<strong>{(reservationsQuery.data ?? []).filter(item => item.status === 'confirmed').length}</strong><small>confirmed</small></span></article>
         </div>
-        <section className="admin-section panel"><div className="admin-section__header"><div><h2>Active services</h2><p>Open, close, edit, or inspect each queue.</p></div><div><Link to="/admin/reservations" className="secondary-button">Reservations</Link><Link to="/admin/tables" className="secondary-button">Tables</Link></div></div>
+        <section className="admin-section panel"><div className="admin-section__header"><div><h2>Active services</h2><p>Open, close, edit, or inspect each queue.</p></div><div><Link to="/admin/reservations" className="secondary-button">Reservations</Link><Link to="/admin/tables" className="secondary-button">Tables</Link><Link to="/admin/history" className="secondary-button">History</Link></div></div>
             {servicesQuery.isLoading ? <p className="admin-loading">Loading services...</p> : servicesQuery.isError ? <p role="alert">Failed to load services.</p> : <ul className="admin-dashboard__list">{services.map(service => <ServiceListItem key={service.id} service={service} queueLength={lengths[service.id] ?? 0} />)}</ul>}
         </section>
     </section>

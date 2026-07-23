@@ -19,6 +19,8 @@ import type {
     QueueEntry,
     MyQueueStatus,
     WaitlistHistoryRecord,
+    WaitlistOutcome,
+    AdminHistoryRecord,
     AppNotification,
 } from './contracts/types';
 
@@ -28,9 +30,13 @@ import {
     mockTables,
     mockReservations,
     mockMyQueueStatus,
-    mockWaitlistHistory,
     mockNotifications,
 } from './data/mockData';
+
+// A3 backend (Node/Express, see /backend). Override with VITE_API_URL for a
+// non-default port; everything else in this file is still mock data pending
+// each module's backend integration.
+const API_BASE_URL: string = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
 
 interface User {
     id: string;
@@ -510,9 +516,32 @@ export function useMyQueueStatus(): MyQueueStatusQuery {
     })
 }
 
+// Wire format returned by the real backend (backend/src/modules/history/router.ts).
+interface BackendHistoryRecord {
+    id: string;
+    serviceName: string;
+    partySize: number;
+    resolvedAt: string;
+    outcome: WaitlistOutcome;
+    waitMinutes: number;
+}
+
 async function fetchWaitlistHistory(): Promise<WaitlistHistoryRecord[]> {
-    await new Promise(r => setTimeout(r, FAKE_DELAY_MS));
-    return mockWaitlistHistory;
+    // TODO: use the real logged-in user's id once Ian's auth module issues sessions.
+    const userId = '123';
+    const response = await fetch(`${API_BASE_URL}/api/history/${userId}`);
+    if (!response.ok) {
+        throw new Error(`Failed to load history (${response.status})`);
+    }
+    const records: BackendHistoryRecord[] = await response.json();
+    return records.map(record => ({
+        id: record.id,
+        serviceName: record.serviceName,
+        date: record.resolvedAt,
+        partySize: record.partySize,
+        outcome: record.outcome,
+        waitMinutes: record.waitMinutes,
+    }));
 }
 
 export type WaitlistHistoryQuery = UseQueryResult<NoInfer<WaitlistHistoryRecord[]>, Error>;
@@ -522,6 +551,38 @@ export function useWaitlistHistory(): WaitlistHistoryQuery {
         queryKey: ['waitlistHistory'],
         queryFn: fetchWaitlistHistory,
         staleTime: 5 * 60 * 1000,
+    })
+}
+
+// Admin view: every user's history at once (see backend/src/modules/history/router.ts's GET /).
+interface BackendAdminHistoryRecord extends BackendHistoryRecord {
+    customerEmail: string;
+}
+
+async function fetchAllHistory(): Promise<AdminHistoryRecord[]> {
+    const response = await fetch(`${API_BASE_URL}/api/history`);
+    if (!response.ok) {
+        throw new Error(`Failed to load history (${response.status})`);
+    }
+    const records: BackendAdminHistoryRecord[] = await response.json();
+    return records.map(record => ({
+        id: record.id,
+        serviceName: record.serviceName,
+        date: record.resolvedAt,
+        partySize: record.partySize,
+        outcome: record.outcome,
+        waitMinutes: record.waitMinutes,
+        customerEmail: record.customerEmail,
+    }));
+}
+
+export type AllHistoryQuery = UseQueryResult<NoInfer<AdminHistoryRecord[]>, Error>;
+
+export function useAllHistory(): AllHistoryQuery {
+    return useQuery({
+        queryKey: ['allHistory'],
+        queryFn: fetchAllHistory,
+        staleTime: 60 * 1000,
     })
 }
 

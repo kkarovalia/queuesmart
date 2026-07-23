@@ -28,6 +28,7 @@ const adminLinks = [
     { to: '/admin/queue', label: 'Queue Management', icon: UsersRound },
     { to: '/admin/tables', label: 'Tables', icon: TableProperties },
     { to: '/admin/reservations', label: 'Reservations', icon: CalendarDays },
+    { to: '/admin/history', label: 'History', icon: History },
 ] as const
 
 function Brand({ compact = false }: { compact?: boolean }) {
