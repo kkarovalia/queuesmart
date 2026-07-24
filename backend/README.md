@@ -25,7 +25,7 @@ npm run lint
 |---|---|---|---|
 | Auth | `/api/auth` | Ian | Starting point only — see TODO in file |
 | Services | `/api/services` | Ian | Starting point only — see TODO in file |
-| Queue | `/api/queue` | Kashf | Starting point only — see TODO in file |
+| Queue | `/api/queue` | Kashf | Done — see `src/modules/queue/README.md` |
 | Notifications | `/api/notifications` | Nelson | Starting point only — see TODO in file |
 | Wait-time | `/api/wait-time` | Nelson | Starting point only — see TODO in file |
 | History | `/api/history` | Frances | Done |
