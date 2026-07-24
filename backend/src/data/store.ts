@@ -45,13 +45,9 @@ export const services: Service[] = [
     },
 ]
 
-// Seeded with other demo guests, not user '123' — that id is the frontend's
-// own placeholder logged-in user (see api.ts's fetchUser()), and join only
-// allows one entry per user per service, so seeding user '123' here would
-// permanently block them from ever joining this service themselves.
 export const queueEntries: QueueEntry[] = [
-    { id: 'q-1', serviceId: 'svc-1', userId: 'demo-guest-1', partySize: 4, status: 'waiting', joinedAt: '2026-07-10T18:12:00Z', servedAt: null },
-    { id: 'q-2', serviceId: 'svc-1', userId: 'demo-guest-2', partySize: 2, status: 'waiting', joinedAt: '2026-07-10T18:17:00Z', servedAt: null },
+    { id: 'q-1', serviceId: 'svc-1', userId: '123', partySize: 4, status: 'waiting', joinedAt: '2026-07-10T18:12:00Z', servedAt: null },
+    { id: 'q-2', serviceId: 'svc-1', userId: '123', partySize: 2, status: 'waiting', joinedAt: '2026-07-10T18:17:00Z', servedAt: null },
 ]
 
 export const historyRecords: HistoryRecord[] = [
