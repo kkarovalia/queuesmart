@@ -33,6 +33,9 @@ export interface QueueEntry {
     serviceId: string
     userId: string
     partySize: number
+    // Optional per-party override. When absent the entry inherits its
+    // service's priority — see resolveEntryPriority in modules/queue/router.ts.
+    priority?: PriorityLevel
     status: QueueEntryStatus
     joinedAt: string
     servedAt: string | null
