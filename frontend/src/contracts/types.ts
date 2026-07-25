@@ -91,6 +91,10 @@ export interface WaitlistHistoryRecord {
     waitMinutes: number
 }
 
+export interface AdminHistoryRecord extends WaitlistHistoryRecord {
+    customerEmail: string
+}
+
 export interface AppNotification {
     id: string
     title: string

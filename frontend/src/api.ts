@@ -16,46 +16,72 @@ import type {
     TableFormInput,
     Reservation,
     ReservationFormInput,
-    QueueEntry,
     MyQueueStatus,
     WaitlistHistoryRecord,
-    AppNotification,
+    WaitlistOutcome,
+    AdminHistoryRecord,
+    PriorityLevel,
 } from './contracts/types';
 
+import type { QueueNotification } from './types/queue';
+
 import {
-    mockServices,
     mockQueueEntries,
     mockTables,
     mockReservations,
     mockMyQueueStatus,
-    mockWaitlistHistory,
-    mockNotifications,
 } from './data/mockData';
+
+// A3 backend (Node/Express, see /backend). Override with VITE_API_URL for a
+// non-default port; everything else in this file is still mock data pending
+// each module's backend integration.
+const API_BASE_URL: string = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
 
 interface User {
     id: string;
-    name: string;
-    admin: boolean; // Hint to the UI. Does not grant perms in API calls.
+    email: string;
+    role: 'user' | 'admin';
 }
 
-async function getSessionID(): Promise<string> {
-    // TODO
-    return "thisisatest";
+const TOKEN_STORAGE_KEY = 'queuesmart_token';
+
+export function getToken(): string | null {
+    return localStorage.getItem(TOKEN_STORAGE_KEY);
+}
+
+function setToken(token: string): void {
+    localStorage.setItem(TOKEN_STORAGE_KEY, token);
+}
+
+function clearToken(): void {
+    localStorage.removeItem(TOKEN_STORAGE_KEY);
+}
+
+function authHeaders(): HeadersInit {
+    const token = getToken();
+    return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+async function parseApiError(response: Response): Promise<never> {
+    const body = await response.json().catch(() => null);
+    const message = body?.details?.[0] ?? body?.error ?? `Request failed (${response.status})`;
+    throw new Error(message);
 }
 
 async function fetchUser(): Promise<User | null> {
-    await getSessionID();
-
-    // Do some api call w/ session id where the actual user is retrieved, or fails to do so
-
-    await new Promise(r => setTimeout(r, 5000)); // Fake load delay to test spinners. Pls delete later.
-
-    // Placeholder user
-    return {
-        id: "123",
-        name: "AUser",
-        admin: true
+    const token = getToken();
+    if (!token) return null;
+    const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    if (response.status === 401) {
+        clearToken();
+        return null;
     }
+    if (!response.ok) {
+        await parseApiError(response);
+    }
+    return response.json();
 }
 
 export type UserQuery = UseQueryResult<NoInfer<User | null>, Error>;
@@ -70,13 +96,103 @@ export function useUser(): UserQuery {
     })
 }
 
+interface LoginInput {
+    email: string;
+    password: string;
+}
+
+export interface AuthResponse {
+    token: string;
+    id: string;
+    email: string;
+    role: 'user' | 'admin';
+}
+ 
+async function login({ email, password }: LoginInput): Promise<AuthResponse> {
+    const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+    });
+    if (!response.ok) await parseApiError(response);
+    return response.json();
+}
+ 
+export type LoginMutation = UseMutationResult<NoInfer<AuthResponse>, Error, LoginInput>;
+ 
+export function useLogin(): LoginMutation {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: login,
+        onSuccess: (data: AuthResponse) => {
+            setToken(data.token);
+            queryClient.invalidateQueries({ queryKey: ['user'] });
+        },
+    })
+}
+ 
+interface RegisterInput {
+    email: string;
+    password: string;
+}
+ 
+async function register({ email, password }: RegisterInput): Promise<AuthResponse> {
+    const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+    });
+    if (!response.ok) await parseApiError(response);
+    return response.json();
+}
+ 
+export type RegisterMutation = UseMutationResult<NoInfer<AuthResponse>, Error, RegisterInput>;
+ 
+export function useRegister(): RegisterMutation {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: register,
+        onSuccess: (data: AuthResponse) => {
+            setToken(data.token);
+            queryClient.invalidateQueries({ queryKey: ['user'] });
+        },
+    })
+}
+ 
+export function useLogout(): () => void {
+    const queryClient = useQueryClient();
+    return () => {
+        clearToken();
+        queryClient.setQueryData(['user'], null);
+    };
+}
+
 // --- Admin Services ---
 
 const FAKE_DELAY_MS = 500;
 
+interface BackendService {
+    id: string;
+    name: string;
+    description: string;
+    expectedDurationMinutes: number;
+    priority: PriorityLevel;
+    status: 'open' | 'closed';
+}
+ 
+function toFrontendService(service: BackendService): Service {
+    return {
+        ...service,
+        estimatedWait: `${service.expectedDurationMinutes} min`,
+        tablePreferenceLabel: 'Any available table',
+    };
+}
+ 
 async function fetchServices(): Promise<Service[]> {
-    await new Promise(r => setTimeout(r, FAKE_DELAY_MS));
-    return mockServices;
+    const response = await fetch(`${API_BASE_URL}/api/services`);
+    if (!response.ok) await parseApiError(response);
+    const services: BackendService[] = await response.json();
+    return services.map(toFrontendService);
 }
 
 export type ServicesQuery = UseQueryResult<NoInfer<Service[]>, Error>;
@@ -109,8 +225,9 @@ export function useQueueLengths(): QueueLengthsQuery {
 }
 
 async function fetchService(id: string): Promise<Service | null> {
-    await new Promise(r => setTimeout(r, FAKE_DELAY_MS));
-    return mockServices.find(s => s.id === id) ?? null;
+    const services = await fetchServices();
+    return services.find(s => s.id === id) ?? null;
+
 }
 
 export type ServiceQuery = UseQueryResult<NoInfer<Service | null>, Error>;
@@ -124,13 +241,12 @@ export function useService(id: string): ServiceQuery {
 }
 
 async function toggleServiceStatus(id: string): Promise<Service> {
-    await new Promise(r => setTimeout(r, FAKE_DELAY_MS));
-    const service = mockServices.find(s => s.id === id);
-    if (!service) {
-        throw new Error(`Service ${id} not found`);
-    }
-    service.status = service.status === 'open' ? 'closed' : 'open';
-    return service;
+    const response = await fetch(`${API_BASE_URL}/api/services/${id}/status`, {
+        method: 'PATCH',
+        headers: authHeaders(),
+    });
+    if (!response.ok) await parseApiError(response);
+    return toFrontendService(await response.json());
 }
 
 export type ToggleServiceStatusMutation = UseMutationResult<NoInfer<Service>, Error, string>;
@@ -145,23 +261,45 @@ export function useToggleServiceStatus(): ToggleServiceStatusMutation {
     })
 }
 
+async function createService(input: ServiceFormInput): Promise<Service> {
+    const response = await fetch(`${API_BASE_URL}/api/services`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify(input),
+    });
+    if (!response.ok) await parseApiError(response);
+    return toFrontendService(await response.json());
+}
+ 
+export type CreateServiceMutation = UseMutationResult<NoInfer<Service>, Error, ServiceFormInput>;
+ 
+export function useCreateService(): CreateServiceMutation {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: createService,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['services'] });
+        },
+    })
+}
+
 interface UpdateServiceArgs {
     id: string;
     input: ServiceFormInput;
 }
 
 async function updateService({ id, input }: UpdateServiceArgs): Promise<Service> {
-    await new Promise(r => setTimeout(r, FAKE_DELAY_MS));
-    const service = mockServices.find(s => s.id === id);
-    if (!service) {
-        throw new Error(`Service ${id} not found`);
-    }
-    Object.assign(service, input);
-    return service;
+    const response = await fetch(`${API_BASE_URL}/api/services/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify(input),
+    });
+    if (!response.ok) await parseApiError(response);
+    return toFrontendService(await response.json());
 }
-
+ 
 export type UpdateServiceMutation = UseMutationResult<NoInfer<Service>, Error, UpdateServiceArgs>;
-
+ 
 export function useUpdateService(): UpdateServiceMutation {
     const queryClient = useQueryClient();
     return useMutation({
@@ -382,117 +520,107 @@ export function useCancelReservation(): CancelReservationMutation {
     })
 }
 
-// --- Queue Management ---
-
-// Note: This should be fine grained by service id on the backend to avoid large payloads
-async function fetchQueueEntries(serviceId: string): Promise<QueueEntry[]> {
-    await new Promise(r => setTimeout(r, FAKE_DELAY_MS));
-    return mockQueueEntries.filter((entry) => entry.serviceId === serviceId);
+// --- Queue Management (backend/src/modules/queue/router.ts) ---
+// Wire format: entries carry a resolved `priority` and, on the list endpoint
+// only, a 1-based `position` — both computed server-side so the UI never has
+// to re-derive the ordering rules (priority, then arrival time).
+export interface QueueEntryView {
+    id: string;
+    serviceId: string;
+    userId: string;
+    partySize: number;
+    priority: PriorityLevel;
+    status: 'waiting' | 'almost-ready' | 'served' | 'left';
+    joinedAt: string;
+    servedAt: string | null;
+    position?: number;
 }
 
-export type QueueEntriesQuery = UseQueryResult<NoInfer<QueueEntry[] | null>, Error>;
+async function fetchQueueForService(serviceId: string): Promise<QueueEntryView[]> {
+    const response = await fetch(`${API_BASE_URL}/api/queue/${serviceId}`);
+    if (!response.ok) await parseApiError(response);
+    return response.json();
+}
 
-export function useQueueEntries(serviceId: string): QueueEntriesQuery {
+export type QueueForServiceQuery = UseQueryResult<NoInfer<QueueEntryView[]>, Error>;
+
+export function useQueueForService(serviceId: string): QueueForServiceQuery {
     return useQuery({
-        queryKey: ['queueEntries', serviceId],
-        queryFn: () => fetchQueueEntries(serviceId),
-        staleTime: 60 * 1000,
+        queryKey: ['queueForService', serviceId],
+        queryFn: () => fetchQueueForService(serviceId),
+        staleTime: 15 * 1000,
     })
 }
 
-interface ReorderQueueEntriesArgs {
+interface JoinQueueArgs {
     serviceId: string;
-    entries: QueueEntry[];
+    userId: string;
+    partySize: number;
 }
 
-async function reorderQueueEntries({ serviceId, entries }: ReorderQueueEntriesArgs): Promise<QueueEntry[]> {
-    await new Promise(r => setTimeout(r, FAKE_DELAY_MS));
-    const otherEntries = mockQueueEntries.filter(e => e.serviceId !== serviceId);
-    mockQueueEntries.length = 0;
-    mockQueueEntries.push(...otherEntries, ...entries);
-    return entries;
+export async function joinQueue({ serviceId, userId, partySize }: JoinQueueArgs): Promise<QueueEntryView> {
+    const response = await fetch(`${API_BASE_URL}/api/queue/${serviceId}/join`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, partySize }),
+    });
+    if (!response.ok) await parseApiError(response);
+    return response.json();
 }
 
-export type ReorderQueueEntriesMutation = UseMutationResult<NoInfer<QueueEntry[]>, Error, QueueEntry[]>;
-
-export function useReorderQueueEntries(serviceId: string): ReorderQueueEntriesMutation {
-    const queryClient = useQueryClient();
-    const queryKey = ['queueEntries', serviceId];
-
-    return useMutation({
-        mutationFn: (entries: QueueEntry[]) => reorderQueueEntries({ serviceId, entries }),
-        onMutate: async (entries) => {
-            await queryClient.cancelQueries({ queryKey });
-            const previous = queryClient.getQueryData<QueueEntry[]>(queryKey);
-            queryClient.setQueryData(queryKey, entries);
-            return { previous };
-        },
-        onError: (_err, _entries, context) => {
-            if (context?.previous) {
-                queryClient.setQueryData(queryKey, context.previous);
-            }
-        },
-        onSettled: () => {
-            queryClient.invalidateQueries({ queryKey });
-        },
-    })
-}
-
-interface AddQueueEntryArgs {
+interface LeaveQueueArgs {
     serviceId: string;
-    customerName: string;
-    insertAtFront: boolean;
+    userId: string;
 }
 
-async function addQueueEntry({ serviceId, customerName, insertAtFront }: AddQueueEntryArgs): Promise<QueueEntry> {
-    await new Promise(r => setTimeout(r, FAKE_DELAY_MS));
-    const maxIdNum = mockQueueEntries.reduce((max, entry) => {
-        const match = entry.id.match(/^q-(\d+)$/);
-        return match ? Math.max(max, Number(match[1])) : max;
-    }, 0);
-
-    const newEntry: QueueEntry = {
-        id: `q-${maxIdNum + 1}`,
-        serviceId,
-        customerName,
-        joinedAt: new Date().toISOString(),
-        partySize: 2,
-        estimatedWaitMinutes: insertAtFront ? 5 : 30,
-    };
-
-    if (insertAtFront) {
-        const firstIndexForService = mockQueueEntries.findIndex(e => e.serviceId === serviceId);
-        if (firstIndexForService === -1) {
-            mockQueueEntries.push(newEntry);
-        } else {
-            mockQueueEntries.splice(firstIndexForService, 0, newEntry);
-        }
-    } else {
-        mockQueueEntries.push(newEntry);
-    }
-
-    return newEntry;
+export async function leaveQueue({ serviceId, userId }: LeaveQueueArgs): Promise<void> {
+    const response = await fetch(`${API_BASE_URL}/api/queue/${serviceId}/leave`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+    });
+    if (!response.ok) await parseApiError(response);
 }
 
-interface AddQueueEntryVariables {
-    customerName: string;
-    insertAtFront: boolean;
+interface ServeNextResult {
+    served: QueueEntryView;
+    nowAlmostReady: QueueEntryView | null;
 }
 
-export type AddQueueEntryMutation = UseMutationResult<NoInfer<QueueEntry>, Error, AddQueueEntryVariables>;
+async function serveNextInQueue(serviceId: string): Promise<ServeNextResult> {
+    const response = await fetch(`${API_BASE_URL}/api/queue/${serviceId}/serve-next`, { method: 'POST' });
+    if (!response.ok) await parseApiError(response);
+    return response.json();
+}
 
-export function useAddQueueEntry(serviceId: string): AddQueueEntryMutation {
+export type ServeNextMutation = UseMutationResult<NoInfer<ServeNextResult>, Error, void>;
+
+export function useServeNextInQueue(serviceId: string): ServeNextMutation {
     const queryClient = useQueryClient();
-    const queryKey = ['queueEntries', serviceId];
-
     return useMutation({
-        mutationFn: ({ customerName, insertAtFront }: AddQueueEntryVariables) =>
-            addQueueEntry({ serviceId, customerName, insertAtFront }),
+        mutationFn: () => serveNextInQueue(serviceId),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey });
-            queryClient.invalidateQueries({ queryKey: ['queueLengths'] });
+            queryClient.invalidateQueries({ queryKey: ['queueForService', serviceId] });
         },
     })
+}
+
+// --- Wait-Time Estimation (backend/src/modules/wait-time/router.ts) ---
+export interface EntryWaitStatus {
+    entryId: string;
+    serviceId: string;
+    position: number;
+    estimatedWaitMinutes: number;
+}
+
+// Returns null once the entry is no longer active (served/left) or never
+// existed — the backend tells those apart via 400 vs 404, but the customer
+// queue-status screen just needs to know "still waiting or not" either way.
+export async function fetchEntryWaitStatus(serviceId: string, entryId: string): Promise<EntryWaitStatus | null> {
+    const response = await fetch(`${API_BASE_URL}/api/wait-time/${serviceId}/entry/${entryId}`);
+    if (response.status === 400 || response.status === 404) return null;
+    if (!response.ok) await parseApiError(response);
+    return response.json();
 }
 
 async function fetchMyQueueStatus(): Promise<MyQueueStatus | null> {
@@ -510,9 +638,32 @@ export function useMyQueueStatus(): MyQueueStatusQuery {
     })
 }
 
+// Wire format returned by the real backend (backend/src/modules/history/router.ts).
+interface BackendHistoryRecord {
+    id: string;
+    serviceName: string;
+    partySize: number;
+    resolvedAt: string;
+    outcome: WaitlistOutcome;
+    waitMinutes: number;
+}
+
 async function fetchWaitlistHistory(): Promise<WaitlistHistoryRecord[]> {
-    await new Promise(r => setTimeout(r, FAKE_DELAY_MS));
-    return mockWaitlistHistory;
+    // TODO: use the real logged-in user's id once Ian's auth module issues sessions.
+    const userId = '123';
+    const response = await fetch(`${API_BASE_URL}/api/history/${userId}`);
+    if (!response.ok) {
+        throw new Error(`Failed to load history (${response.status})`);
+    }
+    const records: BackendHistoryRecord[] = await response.json();
+    return records.map(record => ({
+        id: record.id,
+        serviceName: record.serviceName,
+        date: record.resolvedAt,
+        partySize: record.partySize,
+        outcome: record.outcome,
+        waitMinutes: record.waitMinutes,
+    }));
 }
 
 export type WaitlistHistoryQuery = UseQueryResult<NoInfer<WaitlistHistoryRecord[]>, Error>;
@@ -525,17 +676,93 @@ export function useWaitlistHistory(): WaitlistHistoryQuery {
     })
 }
 
-async function fetchNotifications(): Promise<AppNotification[]> {
-    await new Promise(r => setTimeout(r, FAKE_DELAY_MS));
-    return mockNotifications;
+// Admin view: every user's history at once (see backend/src/modules/history/router.ts's GET /).
+interface BackendAdminHistoryRecord extends BackendHistoryRecord {
+    customerEmail: string;
 }
 
-export type NotificationsQuery = UseQueryResult<NoInfer<AppNotification[]>, Error>;
+async function fetchAllHistory(): Promise<AdminHistoryRecord[]> {
+    const response = await fetch(`${API_BASE_URL}/api/history`);
+    if (!response.ok) {
+        throw new Error(`Failed to load history (${response.status})`);
+    }
+    const records: BackendAdminHistoryRecord[] = await response.json();
+    return records.map(record => ({
+        id: record.id,
+        serviceName: record.serviceName,
+        date: record.resolvedAt,
+        partySize: record.partySize,
+        outcome: record.outcome,
+        waitMinutes: record.waitMinutes,
+        customerEmail: record.customerEmail,
+    }));
+}
 
-export function useNotifications(): NotificationsQuery {
+export type AllHistoryQuery = UseQueryResult<NoInfer<AdminHistoryRecord[]>, Error>;
+
+export function useAllHistory(): AllHistoryQuery {
     return useQuery({
-        queryKey: ['notifications'],
-        queryFn: fetchNotifications,
-        staleTime: 30 * 1000,
+        queryKey: ['allHistory'],
+        queryFn: fetchAllHistory,
+        staleTime: 60 * 1000,
+    })
+}
+
+// --- Notifications (backend/src/modules/notifications/router.ts) ---
+// Backend only stores a `kind` + generated `message`; map kind -> the
+// title/tone the UI displays.
+const NOTIFICATION_DISPLAY: Record<string, { title: string; tone: QueueNotification['tone'] }> = {
+    'queue-joined': { title: 'You joined the waitlist', tone: 'success' },
+    'almost-ready': { title: "You're almost ready", tone: 'warning' },
+    served: { title: 'Your table is ready', tone: 'success' },
+};
+
+interface BackendNotification {
+    id: string;
+    userId: string;
+    kind: string;
+    message: string;
+    createdAt: string;
+    read: boolean;
+}
+
+async function fetchNotifications(userId: string): Promise<QueueNotification[]> {
+    const response = await fetch(`${API_BASE_URL}/api/notifications/${userId}`);
+    if (!response.ok) await parseApiError(response);
+    const records: BackendNotification[] = await response.json();
+    return records.map(record => ({
+        id: record.id,
+        title: NOTIFICATION_DISPLAY[record.kind]?.title ?? 'Notification',
+        message: record.message,
+        createdAt: record.createdAt,
+        read: record.read,
+        tone: NOTIFICATION_DISPLAY[record.kind]?.tone ?? 'info',
+    }));
+}
+
+export type NotificationsQuery = UseQueryResult<NoInfer<QueueNotification[]>, Error>;
+
+export function useNotifications(userId: string): NotificationsQuery {
+    return useQuery({
+        queryKey: ['notifications', userId],
+        queryFn: () => fetchNotifications(userId),
+        staleTime: 15 * 1000,
+    })
+}
+
+async function markNotificationRead(notificationId: string): Promise<void> {
+    const response = await fetch(`${API_BASE_URL}/api/notifications/${notificationId}/read`, { method: 'POST' });
+    if (!response.ok) await parseApiError(response);
+}
+
+export type MarkNotificationReadMutation = UseMutationResult<NoInfer<void>, Error, string>;
+
+export function useMarkNotificationRead(): MarkNotificationReadMutation {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: markNotificationRead,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['notifications'] });
+        },
     })
 }

@@ -7,6 +7,18 @@ import { routeTree } from '../../routeTree.gen'
 
 describe('admin dashboard', () => {
     it('opens and closes a service queue', async () => {
+        // The toggle endpoint requires an authenticated admin (see
+        // backend/src/modules/services/router.ts's requireAuth/requireRole),
+        // so log in for real against the running backend first, the same
+        // way LoginPage does, rather than mocking the request.
+        const loginResponse = await fetch('http://localhost:3001/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: 'admin@example.com', password: 'demo-admin' }),
+        })
+        const { token } = await loginResponse.json()
+        window.localStorage.setItem('queuesmart_token', token)
+
         const user = userEvent.setup()
         const router = createRouter({ routeTree }); void router.navigate({ to: '/admin' })
         render(<QueryClientProvider client={new QueryClient()}><RouterProvider router={router} /></QueryClientProvider>)

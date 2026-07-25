@@ -4,7 +4,6 @@ import type {
     Table,
     Reservation,
     MyQueueStatus,
-    WaitlistHistoryRecord,
     AppNotification,
 } from '../contracts/types'
 
@@ -140,13 +139,6 @@ export const mockMyQueueStatus: MyQueueStatus = {
     status: 'waiting',
     joinedAt: new Date(Date.now() - 1000 * 60 * 10).toISOString(),
 }
-
-export const mockWaitlistHistory: WaitlistHistoryRecord[] = [
-    { id: 'h-1', serviceName: 'Dinner Waitlist', date: '2026-06-19', partySize: 4, outcome: 'seated', waitMinutes: 40 },
-    { id: 'h-2', serviceName: 'Bar Seating', date: '2026-06-02', partySize: 2, outcome: 'cancelled', waitMinutes: 0 },
-    { id: 'h-3', serviceName: 'Patio Seating', date: '2026-05-23', partySize: 1, outcome: 'seated', waitMinutes: 15 },
-    { id: 'h-4', serviceName: 'Private Dining', date: '2026-05-12', partySize: 5, outcome: 'no-show', waitMinutes: 55 },
-]
 
 export const mockNotifications: AppNotification[] = [
     {
