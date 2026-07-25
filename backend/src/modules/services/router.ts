@@ -1,20 +1,17 @@
 import { Router } from 'express'
-import { services } from '../../data/store.js'
-import type { PriorityLevel, Service } from '../../types.js'
+import { requireAuth, requireRole } from '../../middleware/auth.js'
+import { createService, getServices, toggleServiceStatus, updateService } from '../../database.js'
+import type { PriorityLevel, ServiceInput } from '../../types.js'
 
 export const servicesRouter = Router()
 
-// TODO(Ian): this is a starting point, not a finished module.
-// Still needed: PUT /:id (update), and probably open/close as its own
-// action. Feel free to add a services.test.ts alongside this file
-// (see modules/history for a test pattern using supertest).
+interface ValidationResult {
+    errors: string[]
+    value?: ServiceInput
+}
 
-servicesRouter.get('/', (_req, res) => {
-    res.json(services)
-})
-
-servicesRouter.post('/', (req, res) => {
-    const { name, description, expectedDurationMinutes, priority } = req.body ?? {}
+function validateServiceInput(body: unknown): ValidationResult {
+    const { name, description, expectedDurationMinutes, priority } = (body ?? {}) as Record<string, unknown>
     const errors: string[] = []
 
     if (typeof name !== 'string' || !name.trim()) {
@@ -32,23 +29,57 @@ servicesRouter.post('/', (req, res) => {
     }
 
     const validPriorities: PriorityLevel[] = ['low', 'medium', 'high']
-    if (!validPriorities.includes(priority)) {
+    if (!validPriorities.includes(priority as PriorityLevel)) {
         errors.push('priority must be one of low, medium, high')
     }
 
+    if (errors.length > 0) return { errors }
+    return {
+        errors: [],
+        value: {
+            name: name as string,
+            description: description as string,
+            expectedDurationMinutes: expectedDurationMinutes as number,
+            priority: priority as PriorityLevel,
+        },
+    }
+}
+
+servicesRouter.get('/', async (_req, res) => {
+    res.json(await getServices())
+})
+
+servicesRouter.post('/', requireAuth, requireRole('admin'), async (req, res) => {
+    const { errors, value } = validateServiceInput(req.body)
     if (errors.length > 0) {
         res.status(400).json({ error: 'Validation failed', details: errors })
         return
     }
 
-    const service: Service = {
-        id: `svc-${services.length + 1}`,
-        name,
-        description,
-        expectedDurationMinutes,
-        priority,
-        status: 'open',
-    }
-    services.push(service)
+    const service = await createService(value!)
     res.status(201).json(service)
+})
+
+servicesRouter.put('/:id', requireAuth, requireRole('admin'), async (req, res) => {
+    const { errors, value } = validateServiceInput(req.body)
+    if (errors.length > 0) {
+        res.status(400).json({ error: 'Validation failed', details: errors })
+        return
+    }
+
+    const updated = await updateService(req.params.id, value!)
+    if (!updated) {
+        res.status(404).json({ error: 'Service not found' })
+        return
+    }
+    res.json(updated)
+})
+
+servicesRouter.patch('/:id/status', requireAuth, requireRole('admin'), async (req, res) => {
+    const updated = await toggleServiceStatus(req.params.id)
+    if (!updated) {
+        res.status(404).json({ error: 'Service not found' })
+        return
+    }
+    res.json(updated)
 })
