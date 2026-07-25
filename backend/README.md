@@ -26,8 +26,8 @@ npm run lint
 | Auth | `/api/auth` | Ian | Starting point only — see TODO in file |
 | Services | `/api/services` | Ian | Starting point only — see TODO in file |
 | Queue | `/api/queue` | Kashf | Done — see `src/modules/queue/README.md` |
-| Notifications | `/api/notifications` | Nelson | Starting point only — see TODO in file |
-| Wait-time | `/api/wait-time` | Nelson | Starting point only — see TODO in file |
+| Notifications | `/api/notifications` | Nelson | Done — see `src/modules/notifications/README.md` |
+| Wait-time | `/api/wait-time` | Nelson | Done — see `src/modules/wait-time/README.md` |
 | History | `/api/history` | Frances | Done |
 
 Each stub is real enough to run and to demonstrate the validation/error-response pattern (400 with `{ error, details }` for bad input, 404 for missing resources) — just not the full logic described in the assignment brief for that module yet. Add a `<module>.test.ts` next to your router file; see `src/modules/history/history.test.ts` for the supertest pattern.
