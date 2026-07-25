@@ -1,18 +1,19 @@
 import { useState, type ReactNode } from 'react'
-import { mockServices, mockQueueEntries } from '../../data/mockData'
+import { useQueryClient } from '@tanstack/react-query'
+import {
+    useServices,
+    useNotifications,
+    useMarkNotificationRead,
+    joinQueue as joinQueueRequest,
+    leaveQueue as leaveQueueRequest,
+    fetchEntryWaitStatus,
+} from '../../api'
 import { QueueFlowContext } from './QueueFlowContext'
-import type {
-    ActiveQueueEntry,
-    QueueFormData,
-    QueueNotification,
-    QueueStatus,
-} from '../../types/queue'
+import type { ActiveQueueEntry, QueueFormData } from '../../types/queue'
 
-const nextStatus: Record<QueueStatus, QueueStatus> = {
-    waiting: 'almost-ready',
-    'almost-ready': 'served',
-    served: 'served',
-}
+// TODO: use the real logged-in user's id once Ian's auth module issues sessions
+// (matches the placeholder id in api.ts's fetchUser()/backend's seed user).
+const CURRENT_USER_ID = '123'
 
 const nowLabel = () =>
     new Intl.DateTimeFormat('en-US', {
@@ -20,122 +21,95 @@ const nowLabel = () =>
         minute: '2-digit',
     }).format(new Date())
 
-const createId = (prefix: string) => {
-    if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
-        return `${prefix}-${crypto.randomUUID()}`
-    }
-
-    return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`
+function formatWait(minutes: number): string {
+    return minutes <= 0 ? 'Ready now' : `${minutes} min`
 }
 
 export function QueueFlowProvider({ children }: { children: ReactNode }) {
     const [activeQueue, setActiveQueue] = useState<ActiveQueueEntry | null>(null)
-    const [notifications, setNotifications] = useState<QueueNotification[]>([
-        {
-            id: 'notification-welcome',
-            title: 'Welcome to QueueSmart',
-            message: 'Open queues and reservations are ready to browse.',
-            createdAt: 'Today',
-            read: true,
-            tone: 'info',
-        },
-        {
-            id: 'notification-reservation',
-            title: 'Reservation confirmed',
-            message: 'Your table for 4 is confirmed for Sunday at 7:00 PM.',
-            createdAt: '7 min ago',
-            read: false,
-            tone: 'success',
-        },
-    ])
+    const servicesQuery = useServices()
+    const notificationsQuery = useNotifications(CURRENT_USER_ID)
+    const markNotificationRead = useMarkNotificationRead()
+    const queryClient = useQueryClient()
 
-    const addNotification = (
-        title: string,
-        message: string,
-        tone: QueueNotification['tone'] = 'info',
-    ) => {
-        setNotifications((currentNotifications) => [
-            {
-                id: createId('notification'),
-                title,
-                message,
-                createdAt: nowLabel(),
-                read: false,
-                tone,
-            },
-            ...currentNotifications,
-        ])
-    }
-
-    const joinQueue = (queueForm: QueueFormData) => {
-        const service = mockServices.find((item) => item.id === queueForm.serviceId)
-
+    const joinQueue = async (queueForm: QueueFormData) => {
+        const service = servicesQuery.data?.find((item) => item.id === queueForm.serviceId)
         if (!service) {
             return
         }
 
-        const queueLength = mockQueueEntries.filter((entry) => entry.serviceId === service.id).length
+        const entry = await joinQueueRequest({
+            serviceId: queueForm.serviceId,
+            userId: CURRENT_USER_ID,
+            partySize: queueForm.partySize,
+        })
+        // Joining creates a notification server-side; without this the UI
+        // wouldn't see it until the notifications query's staleTime lapses.
+        queryClient.invalidateQueries({ queryKey: ['notifications', CURRENT_USER_ID] })
+
+        const waitStatus = await fetchEntryWaitStatus(queueForm.serviceId, entry.id)
 
         setActiveQueue({
             ...queueForm,
-            id: createId('queue'),
+            id: entry.id,
             serviceName: service.name,
-            position: queueLength + 1,
-            estimatedWait: service.estimatedWait,
-            status: 'waiting',
+            position: entry.position ?? 1,
+            estimatedWait: waitStatus ? formatWait(waitStatus.estimatedWaitMinutes) : 'Calculating...',
+            status: entry.status === 'served' ? 'served' : entry.status === 'almost-ready' ? 'almost-ready' : 'waiting',
             joinedAt: nowLabel(),
         })
-        addNotification(
-            'You joined the waitlist',
-            `You joined ${service.name} for a party of ${queueForm.partySize}.`,
-            'success',
-        )
     }
 
-    const leaveQueue = () => {
-        if (activeQueue) {
-            addNotification('Queue update', `You left ${activeQueue.serviceName}.`, 'warning')
+    const leaveQueue = async () => {
+        if (!activeQueue) {
+            return
         }
+        await leaveQueueRequest({ serviceId: activeQueue.serviceId, userId: CURRENT_USER_ID })
         setActiveQueue(null)
     }
 
-    const advanceStatus = () => {
+    // Re-checks the real queue state from the backend. Renamed conceptually
+    // from "advance" (used to just simulate the next step locally) to a real
+    // refresh, since only an admin's serve-next actually changes anyone's
+    // status now.
+    const advanceStatus = async () => {
         if (!activeQueue || activeQueue.status === 'served') {
             return
         }
 
-        const updatedStatus = nextStatus[activeQueue.status]
+        const waitStatus = await fetchEntryWaitStatus(activeQueue.serviceId, activeQueue.id)
+        // A status change here (promoted to almost-ready, or served) means an
+        // admin action created a notification for this user server-side.
+        queryClient.invalidateQueries({ queryKey: ['notifications', CURRENT_USER_ID] })
+
+        if (!waitStatus) {
+            // No longer in the active queue and we didn't leave voluntarily, so
+            // the only other way out is being served.
+            setActiveQueue({ ...activeQueue, status: 'served', position: 0, estimatedWait: 'Ready now' })
+            return
+        }
 
         setActiveQueue({
             ...activeQueue,
-            status: updatedStatus,
-            position: updatedStatus === 'served' ? 0 : activeQueue.position,
-            estimatedWait: updatedStatus === 'served' ? 'Ready now' : '10-15 min',
+            position: waitStatus.position,
+            estimatedWait: formatWait(waitStatus.estimatedWaitMinutes),
+            status: waitStatus.position === 1 ? 'almost-ready' : 'waiting',
         })
-
-        if (updatedStatus === 'almost-ready') {
-            addNotification(
-                "You're almost ready",
-                'Your table is being prepared. Please stay nearby.',
-                'warning',
-            )
-        }
-
-        if (updatedStatus === 'served') {
-            addNotification('Your table is ready', 'Please check in with the host stand.', 'success')
-        }
     }
 
     const value = {
         activeQueue,
-        notifications,
+        notifications: notificationsQuery.data ?? [],
         joinQueue,
         leaveQueue,
         advanceStatus,
-        markAllRead: () =>
-            setNotifications((currentNotifications) =>
-                currentNotifications.map((notification) => ({ ...notification, read: true })),
-            ),
+        markAllRead: () => {
+            for (const notification of notificationsQuery.data ?? []) {
+                if (!notification.read) {
+                    markNotificationRead.mutate(notification.id)
+                }
+            }
+        },
     }
 
     return <QueueFlowContext.Provider value={value}>{children}</QueueFlowContext.Provider>

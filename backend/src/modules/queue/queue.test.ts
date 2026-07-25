@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import request from 'supertest'
 import { createApp } from '../../app.js'
-import { queueEntries, services } from '../../data/store.js'
+import { notifications, queueEntries, services } from '../../data/store.js'
 import type { QueueEntry, Service } from '../../types.js'
 import { getCurrentQueue, resolveEntryPriority, sortQueueEntries, syncAlmostReady } from './router.js'
 
@@ -38,6 +38,7 @@ function resetQueue(entries: QueueEntry[] = []) {
 
 beforeEach(() => {
     resetQueue()
+    notifications.length = 0
 })
 
 describe('queue ordering', () => {
@@ -239,6 +240,23 @@ describe('POST /api/queue/:serviceId/join', () => {
         await request(createApp()).post(`/api/queue/${OPEN_SERVICE}/join`).send({ userId: 'u-1', partySize: 2 })
 
         expect(queueEntries[0].status).toBe('almost-ready')
+    })
+
+    it('notifies the joining user, and notifies them again as almost-ready since the line was empty', async () => {
+        await request(createApp()).post(`/api/queue/${OPEN_SERVICE}/join`).send({ userId: 'u-1', partySize: 2 })
+
+        expect(notifications).toHaveLength(2)
+        expect(notifications[0]).toMatchObject({ userId: 'u-1', kind: 'queue-joined' })
+        expect(notifications[1]).toMatchObject({ userId: 'u-1', kind: 'almost-ready' })
+    })
+
+    it('does not send an almost-ready notification when joining behind someone already in line', async () => {
+        resetQueue([entry({ id: 'q-1', userId: 'u-1', joinedAt: '2026-07-10T18:00:00Z', status: 'almost-ready' })])
+
+        await request(createApp()).post(`/api/queue/${OPEN_SERVICE}/join`).send({ userId: 'u-2', partySize: 2 })
+
+        expect(notifications).toHaveLength(1)
+        expect(notifications[0]).toMatchObject({ userId: 'u-2', kind: 'queue-joined' })
     })
 
     it('puts a high-priority party ahead of parties already in line', async () => {
@@ -497,6 +515,28 @@ describe('POST /api/queue/:serviceId/serve-next', () => {
 
         expect(res.body.nowAlmostReady.id).toBe('q-2')
         expect(res.body.nowAlmostReady.status).toBe('almost-ready')
+    })
+
+    it('notifies the served party and the newly-promoted party', async () => {
+        resetQueue([
+            entry({ id: 'q-1', userId: 'u-1', joinedAt: '2026-07-10T18:00:00Z' }),
+            entry({ id: 'q-2', userId: 'u-2', joinedAt: '2026-07-10T18:10:00Z' }),
+        ])
+
+        await request(createApp()).post(`/api/queue/${OPEN_SERVICE}/serve-next`)
+
+        expect(notifications).toHaveLength(2)
+        expect(notifications[0]).toMatchObject({ userId: 'u-1', kind: 'served' })
+        expect(notifications[1]).toMatchObject({ userId: 'u-2', kind: 'almost-ready' })
+    })
+
+    it('does not send an almost-ready notification when nobody is left to promote', async () => {
+        resetQueue([entry({ id: 'q-1', userId: 'u-1', joinedAt: '2026-07-10T18:00:00Z' })])
+
+        await request(createApp()).post(`/api/queue/${OPEN_SERVICE}/serve-next`)
+
+        expect(notifications).toHaveLength(1)
+        expect(notifications[0]).toMatchObject({ userId: 'u-1', kind: 'served' })
     })
 
     it('reports nobody next when it served the last party in line', async () => {

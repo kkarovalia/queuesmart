@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { queueEntries, services } from '../../data/store.js'
 import type { PriorityLevel, QueueEntry, Service } from '../../types.js'
+import { notifyAlmostReady, notifyQueueJoined, notifyServed } from '../notifications/router.js'
 
 export const queueRouter = Router()
 
@@ -166,11 +167,14 @@ queueRouter.post('/:serviceId/join', (req, res) => {
         servedAt: null,
     }
     queueEntries.push(entry)
+    notifyQueueJoined(userId, service.name)
 
     // Joining an empty line makes you the front-runner immediately.
-    syncAlmostReady(service)
+    const promoted = syncAlmostReady(service)
+    if (promoted) {
+        notifyAlmostReady(promoted.userId, service.name)
+    }
 
-    // Notification trigger point: notifyQueueJoined(userId, service.name).
     const position = getCurrentQueue(service).findIndex(item => item.id === entry.id) + 1
     res.status(201).json({ ...entry, position })
 })
@@ -225,10 +229,12 @@ queueRouter.post('/:serviceId/serve-next', (req, res) => {
 
     next.status = 'served'
     next.servedAt = new Date().toISOString()
+    notifyServed(next.userId, service.name)
 
-    // Notification trigger point: notifyServed(next.userId, service.name).
     const promoted = syncAlmostReady(service)
-    // Notification trigger point: notifyAlmostReady(promoted.userId, service.name).
+    if (promoted) {
+        notifyAlmostReady(promoted.userId, service.name)
+    }
 
     res.json({ served: next, nowAlmostReady: promoted })
 })
