@@ -1,12 +1,13 @@
 import type { AppNotification, HistoryRecord, QueueEntry, Service, User } from '../types.js'
+import * as argon2 from "argon2"
 
 // Single in-memory store shared by every module's routes.
 // No real database in A3 per the assignment brief; A4 replaces this.
 // id '123' matches the placeholder returned by the frontend's useUser() stub
 // (src/api.ts) until Ian's auth module issues real sessions.
 export const users: User[] = [
-    { id: '123', email: 'jamie@example.com', passwordHash: 'demo-hash', role: 'user' },
-    { id: 'admin-1', email: 'admin@example.com', passwordHash: 'demo-hash', role: 'admin' },
+    { id: '123', email: 'jamie@example.com', passwordHash: await argon2.hash('demo-user'), role: 'user' },
+    { id: 'admin-1', email: 'admin@example.com', passwordHash: await argon2.hash('demo-admin'), role: 'admin' },
 ]
 
 export const services: Service[] = [

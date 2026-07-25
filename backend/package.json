@@ -12,8 +12,13 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@types/jsonwebtoken": "^9.0.10",
+    "argon2": "^0.45.1",
     "cors": "^2.8.6",
-    "express": "^4.21.2"
+    "dotenv": "^17.4.2",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.3",
+    "morgan": "^1.11.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

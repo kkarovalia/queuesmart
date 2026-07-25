@@ -22,10 +22,10 @@ import type {
     WaitlistOutcome,
     AdminHistoryRecord,
     AppNotification,
+    PriorityLevel,
 } from './contracts/types';
 
 import {
-    mockServices,
     mockQueueEntries,
     mockTables,
     mockReservations,
@@ -40,28 +40,49 @@ const API_BASE_URL: string = import.meta.env.VITE_API_URL ?? 'http://localhost:3
 
 interface User {
     id: string;
-    name: string;
-    admin: boolean; // Hint to the UI. Does not grant perms in API calls.
+    email: string;
+    role: 'user' | 'admin';
 }
 
-async function getSessionID(): Promise<string> {
-    // TODO
-    return "thisisatest";
+const TOKEN_STORAGE_KEY = 'queuesmart_token';
+
+export function getToken(): string | null {
+    return localStorage.getItem(TOKEN_STORAGE_KEY);
+}
+
+function setToken(token: string): void {
+    localStorage.setItem(TOKEN_STORAGE_KEY, token);
+}
+
+function clearToken(): void {
+    localStorage.removeItem(TOKEN_STORAGE_KEY);
+}
+
+function authHeaders(): HeadersInit {
+    const token = getToken();
+    return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+async function parseApiError(response: Response): Promise<never> {
+    const body = await response.json().catch(() => null);
+    const message = body?.details?.[0] ?? body?.error ?? `Request failed (${response.status})`;
+    throw new Error(message);
 }
 
 async function fetchUser(): Promise<User | null> {
-    await getSessionID();
-
-    // Do some api call w/ session id where the actual user is retrieved, or fails to do so
-
-    await new Promise(r => setTimeout(r, 5000)); // Fake load delay to test spinners. Pls delete later.
-
-    // Placeholder user
-    return {
-        id: "123",
-        name: "AUser",
-        admin: true
+    const token = getToken();
+    if (!token) return null;
+    const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    if (response.status === 401) {
+        clearToken();
+        return null;
     }
+    if (!response.ok) {
+        await parseApiError(response);
+    }
+    return response.json();
 }
 
 export type UserQuery = UseQueryResult<NoInfer<User | null>, Error>;
@@ -76,13 +97,103 @@ export function useUser(): UserQuery {
     })
 }
 
+interface LoginInput {
+    email: string;
+    password: string;
+}
+
+export interface AuthResponse {
+    token: string;
+    id: string;
+    email: string;
+    role: 'user' | 'admin';
+}
+ 
+async function login({ email, password }: LoginInput): Promise<AuthResponse> {
+    const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+    });
+    if (!response.ok) await parseApiError(response);
+    return response.json();
+}
+ 
+export type LoginMutation = UseMutationResult<NoInfer<AuthResponse>, Error, LoginInput>;
+ 
+export function useLogin(): LoginMutation {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: login,
+        onSuccess: (data: AuthResponse) => {
+            setToken(data.token);
+            queryClient.invalidateQueries({ queryKey: ['user'] });
+        },
+    })
+}
+ 
+interface RegisterInput {
+    email: string;
+    password: string;
+}
+ 
+async function register({ email, password }: RegisterInput): Promise<AuthResponse> {
+    const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+    });
+    if (!response.ok) await parseApiError(response);
+    return response.json();
+}
+ 
+export type RegisterMutation = UseMutationResult<NoInfer<AuthResponse>, Error, RegisterInput>;
+ 
+export function useRegister(): RegisterMutation {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: register,
+        onSuccess: (data: AuthResponse) => {
+            setToken(data.token);
+            queryClient.invalidateQueries({ queryKey: ['user'] });
+        },
+    })
+}
+ 
+export function useLogout(): () => void {
+    const queryClient = useQueryClient();
+    return () => {
+        clearToken();
+        queryClient.setQueryData(['user'], null);
+    };
+}
+
 // --- Admin Services ---
 
 const FAKE_DELAY_MS = 500;
 
+interface BackendService {
+    id: string;
+    name: string;
+    description: string;
+    expectedDurationMinutes: number;
+    priority: PriorityLevel;
+    status: 'open' | 'closed';
+}
+ 
+function toFrontendService(service: BackendService): Service {
+    return {
+        ...service,
+        estimatedWait: `${service.expectedDurationMinutes} min`,
+        tablePreferenceLabel: 'Any available table',
+    };
+}
+ 
 async function fetchServices(): Promise<Service[]> {
-    await new Promise(r => setTimeout(r, FAKE_DELAY_MS));
-    return mockServices;
+    const response = await fetch(`${API_BASE_URL}/api/services`);
+    if (!response.ok) await parseApiError(response);
+    const services: BackendService[] = await response.json();
+    return services.map(toFrontendService);
 }
 
 export type ServicesQuery = UseQueryResult<NoInfer<Service[]>, Error>;
@@ -115,8 +226,9 @@ export function useQueueLengths(): QueueLengthsQuery {
 }
 
 async function fetchService(id: string): Promise<Service | null> {
-    await new Promise(r => setTimeout(r, FAKE_DELAY_MS));
-    return mockServices.find(s => s.id === id) ?? null;
+    const services = await fetchServices();
+    return services.find(s => s.id === id) ?? null;
+
 }
 
 export type ServiceQuery = UseQueryResult<NoInfer<Service | null>, Error>;
@@ -130,13 +242,12 @@ export function useService(id: string): ServiceQuery {
 }
 
 async function toggleServiceStatus(id: string): Promise<Service> {
-    await new Promise(r => setTimeout(r, FAKE_DELAY_MS));
-    const service = mockServices.find(s => s.id === id);
-    if (!service) {
-        throw new Error(`Service ${id} not found`);
-    }
-    service.status = service.status === 'open' ? 'closed' : 'open';
-    return service;
+    const response = await fetch(`${API_BASE_URL}/api/services/${id}/status`, {
+        method: 'PATCH',
+        headers: authHeaders(),
+    });
+    if (!response.ok) await parseApiError(response);
+    return toFrontendService(await response.json());
 }
 
 export type ToggleServiceStatusMutation = UseMutationResult<NoInfer<Service>, Error, string>;
@@ -151,23 +262,45 @@ export function useToggleServiceStatus(): ToggleServiceStatusMutation {
     })
 }
 
+async function createService(input: ServiceFormInput): Promise<Service> {
+    const response = await fetch(`${API_BASE_URL}/api/services`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify(input),
+    });
+    if (!response.ok) await parseApiError(response);
+    return toFrontendService(await response.json());
+}
+ 
+export type CreateServiceMutation = UseMutationResult<NoInfer<Service>, Error, ServiceFormInput>;
+ 
+export function useCreateService(): CreateServiceMutation {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: createService,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['services'] });
+        },
+    })
+}
+
 interface UpdateServiceArgs {
     id: string;
     input: ServiceFormInput;
 }
 
 async function updateService({ id, input }: UpdateServiceArgs): Promise<Service> {
-    await new Promise(r => setTimeout(r, FAKE_DELAY_MS));
-    const service = mockServices.find(s => s.id === id);
-    if (!service) {
-        throw new Error(`Service ${id} not found`);
-    }
-    Object.assign(service, input);
-    return service;
+    const response = await fetch(`${API_BASE_URL}/api/services/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify(input),
+    });
+    if (!response.ok) await parseApiError(response);
+    return toFrontendService(await response.json());
 }
-
+ 
 export type UpdateServiceMutation = UseMutationResult<NoInfer<Service>, Error, UpdateServiceArgs>;
-
+ 
 export function useUpdateService(): UpdateServiceMutation {
     const queryClient = useQueryClient();
     return useMutation({

@@ -12,6 +12,7 @@ import {
     UsersRound,
 } from 'lucide-react'
 import { useQueueFlow } from '../features/queue-flow/useQueueFlow'
+import { useLogout, useUser } from '../api'
 import './AppShell.css'
 
 const userLinks = [
@@ -42,11 +43,23 @@ function Brand({ compact = false }: { compact?: boolean }) {
 
 export function AppShell() {
     const pathname = useRouterState({ select: state => state.location.pathname })
+    const logout = useLogout()
+    const { data: user, isLoading: userLoading } = useUser()
     const { notifications } = useQueueFlow()
     const unreadCount = notifications.filter(notification => !notification.read).length
     const isAuth = pathname === '/login' || pathname === '/register'
     const isAdmin = pathname.startsWith('/admin')
     const links = isAdmin ? adminLinks : userLinks
+
+    const identityInitial = userLoading
+        ? '…'
+        : (user?.email?.[0]?.toUpperCase() ?? '?')
+    const identityName = userLoading
+        ? 'Loading…'
+        : (user?.email ?? 'Not signed in')
+    const identityRole = userLoading
+        ? ''
+        : (user?.role === 'admin' ? 'Administrator' : user ? 'Customer' : '')
 
     if (isAuth) {
         return (
@@ -62,8 +75,8 @@ export function AppShell() {
             <aside className="app-sidebar">
                 <Brand compact />
                 <div className="app-sidebar__identity">
-                    <span className="app-sidebar__avatar">{isAdmin ? 'A' : 'JL'}</span>
-                    <div><strong>{isAdmin ? 'Staff Console' : 'Jamie Lee'}</strong><span>{isAdmin ? 'Bistro 42' : 'Guest account'}</span></div>
+                    <span className="app-sidebar__avatar">{identityInitial}</span>
+                    <div><strong>{identityName}</strong>{identityRole && <span>{identityRole}</span>}</div>
                 </div>
                 <nav className="app-nav" aria-label={isAdmin ? 'Administrator navigation' : 'Customer navigation'}>
                     {links.map(({ to, label, icon: Icon }) => (
@@ -77,7 +90,9 @@ export function AppShell() {
                 <div className="app-sidebar__utility">
                     <span><Settings size={17} aria-hidden="true" /> Settings</span>
                     <Link to={isAdmin ? '/dashboard' : '/admin'}>{isAdmin ? 'Customer view' : 'Admin demo'}</Link>
-                    <Link to="/login"><LogOut size={17} aria-hidden="true" /> Log out</Link>
+                    <Link to="/login" onClick={() => logout()}>
+                        <LogOut size={17} aria-hidden="true" /> Log out
+                    </Link>
                 </div>
             </aside>
 

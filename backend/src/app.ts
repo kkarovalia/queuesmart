@@ -1,5 +1,6 @@
 import cors from 'cors'
 import express from 'express'
+import morgan from 'morgan'
 import { authRouter } from './modules/auth/router.js'
 import { servicesRouter } from './modules/services/router.js'
 import { queueRouter } from './modules/queue/router.js'
@@ -10,6 +11,7 @@ import { historyRouter } from './modules/history/router.js'
 export function createApp() {
     const app = express()
     app.use(cors()) // dev-only wide-open CORS so the Vite dev server (a different origin) can call this API
+    app.use(morgan('dev'))
     app.use(express.json())
 
     app.get('/api/health', (_req, res) => {
