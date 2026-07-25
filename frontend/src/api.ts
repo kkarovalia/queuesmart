@@ -40,28 +40,44 @@ const API_BASE_URL: string = import.meta.env.VITE_API_URL ?? 'http://localhost:3
 
 interface User {
     id: string;
-    name: string;
-    admin: boolean; // Hint to the UI. Does not grant perms in API calls.
+    email: string;
+    role: 'user' | 'admin';
 }
 
-async function getSessionID(): Promise<string> {
-    // TODO
-    return "thisisatest";
+const TOKEN_STORAGE_KEY = 'queuesmart_token';
+
+export function getToken(): string | null {
+    return localStorage.getItem(TOKEN_STORAGE_KEY);
+}
+
+function setToken(token: string): void {
+    localStorage.setItem(TOKEN_STORAGE_KEY, token);
+}
+
+function clearToken(): void {
+    localStorage.removeItem(TOKEN_STORAGE_KEY);
+}
+
+async function parseAuthError(response: Response): Promise<never> {
+    const body = await response.json().catch(() => null);
+    const message = body?.details?.[0] ?? body?.error ?? `Request failed (${response.status})`;
+    throw new Error(message);
 }
 
 async function fetchUser(): Promise<User | null> {
-    await getSessionID();
-
-    // Do some api call w/ session id where the actual user is retrieved, or fails to do so
-
-    await new Promise(r => setTimeout(r, 5000)); // Fake load delay to test spinners. Pls delete later.
-
-    // Placeholder user
-    return {
-        id: "123",
-        name: "AUser",
-        admin: true
+    const token = getToken();
+    if (!token) return null;
+    const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    if (response.status === 401) {
+        clearToken();
+        return null;
     }
+    if (!response.ok) {
+        await parseAuthError(response);
+    }
+    return response.json();
 }
 
 export type UserQuery = UseQueryResult<NoInfer<User | null>, Error>;
@@ -74,6 +90,77 @@ export function useUser(): UserQuery {
         retry: false,
         staleTime: 5 * 60 * 1000,
     })
+}
+
+interface LoginInput {
+    email: string;
+    password: string;
+}
+
+export interface AuthResponse {
+    token: string;
+    id: string;
+    email: string;
+    role: 'user' | 'admin';
+}
+ 
+async function login({ email, password }: LoginInput): Promise<AuthResponse> {
+    const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+    });
+    if (!response.ok) await parseAuthError(response);
+    return response.json();
+}
+ 
+export type LoginMutation = UseMutationResult<NoInfer<AuthResponse>, Error, LoginInput>;
+ 
+export function useLogin(): LoginMutation {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: login,
+        onSuccess: (data: AuthResponse) => {
+            setToken(data.token);
+            queryClient.invalidateQueries({ queryKey: ['user'] });
+        },
+    })
+}
+ 
+interface RegisterInput {
+    email: string;
+    password: string;
+}
+ 
+async function register({ email, password }: RegisterInput): Promise<AuthResponse> {
+    const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+    });
+    if (!response.ok) await parseAuthError(response);
+    return response.json();
+}
+ 
+export type RegisterMutation = UseMutationResult<NoInfer<AuthResponse>, Error, RegisterInput>;
+ 
+export function useRegister(): RegisterMutation {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: register,
+        onSuccess: (data: AuthResponse) => {
+            setToken(data.token);
+            queryClient.invalidateQueries({ queryKey: ['user'] });
+        },
+    })
+}
+ 
+export function useLogout(): () => void {
+    const queryClient = useQueryClient();
+    return () => {
+        clearToken();
+        queryClient.setQueryData(['user'], null);
+    };
 }
 
 // --- Admin Services ---

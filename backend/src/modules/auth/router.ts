@@ -1,16 +1,12 @@
+import * as argon2 from "argon2";
 import { Router } from 'express'
 import { users } from '../../data/store.js'
-import type { User } from '../../types.js'
+import { createUser, getUserByEmail, getUserById } from "../../database.js";
+import { requireAuth, signToken, type AuthedRequest } from "../../middleware/auth.js";
 
 export const authRouter = Router()
 
-// TODO(Ian): this is a starting point, not a finished auth module.
-// Still needed: real password hashing (e.g. bcrypt) instead of storing it
-// plain, and a real session/JWT issued on login instead of just echoing
-// the user back. Role handling (user vs admin) is stubbed as always 'user'
-// on registration.
-
-authRouter.post('/register', (req, res) => {
+authRouter.post('/register', async (req, res) => {
     const { email, password } = req.body ?? {}
     const errors: string[] = []
 
@@ -34,18 +30,14 @@ authRouter.post('/register', (req, res) => {
         return
     }
 
-    const user: User = {
-        id: `user-${users.length + 1}`,
-        email,
-        passwordHash: password,
-        role: 'user',
-    }
-    users.push(user)
+    const passwordHash = await argon2.hash(password)
+    const user = await createUser({ email, passwordHash, role: 'user' })
 
-    res.status(201).json({ id: user.id, email: user.email, role: user.role })
+    const token = signToken({ sub: user.id, role: user.role })
+    res.status(201).json({ token, id: user.id, email: user.email, role: user.role })
 })
 
-authRouter.post('/login', (req, res) => {
+authRouter.post('/login', async (req, res) => {
     const { email, password } = req.body ?? {}
 
     if (typeof email !== 'string' || typeof password !== 'string') {
@@ -53,11 +45,22 @@ authRouter.post('/login', (req, res) => {
         return
     }
 
-    const user = users.find(item => item.email === email)
-    if (!user || user.passwordHash !== password) {
+    const user = await getUserByEmail(email)
+
+    if (!user || !(await argon2.verify(user.passwordHash, password))) {
         res.status(401).json({ error: 'Invalid email or password' })
         return
     }
 
+    const token = signToken({ sub: user.id, role: user.role })
+    res.json({ token, id: user.id, email: user.email, role: user.role })
+})
+
+authRouter.get('/me', requireAuth, async (req: AuthedRequest, res) => {
+    const user = req.user ? await getUserById(req.user.sub) : undefined
+    if (!user) {
+        res.status(404).json({ error: 'User not found' })
+        return
+    }
     res.json({ id: user.id, email: user.email, role: user.role })
 })

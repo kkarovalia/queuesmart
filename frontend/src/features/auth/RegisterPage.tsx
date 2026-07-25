@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
+import { useRegister } from '../../api'
 import './auth.css'
 
 interface FormValues {
@@ -33,8 +34,8 @@ function validate(values: FormValues): FormErrors {
 
     if (!values.password) {
         errors.password = 'Password is required.'
-    } else if (values.password.length < 6) {
-        errors.password = 'Password must be at least 6 characters.'
+    } else if (values.password.length < 8) {
+        errors.password = 'Password must be at least 8 characters.'
     }
 
     if (values.confirmPassword !== values.password) {
@@ -46,6 +47,7 @@ function validate(values: FormValues): FormErrors {
 
 export function RegisterPage() {
     const navigate = useNavigate()
+    const register = useRegister()
     const [values, setValues] = useState<FormValues>({
         fullName: '',
         email: '',
@@ -62,10 +64,13 @@ export function RegisterPage() {
         event.preventDefault()
         const nextErrors = validate(values)
         setErrors(nextErrors)
+        if (Object.keys(nextErrors).length > 0) return
 
-        if (Object.keys(nextErrors).length === 0) {
-            navigate({ to: '/dashboard' })
-        }
+        register.mutate({ email: values.email, password: values.password }, {
+            onSuccess: () => {
+                navigate({ to: '/dashboard' })
+            },
+        })
     }
 
     return (
@@ -122,7 +127,11 @@ export function RegisterPage() {
                     {errors.confirmPassword && <span className="auth-form__error">{errors.confirmPassword}</span>}
                 </div>
 
-                <button type="submit" className="auth-form__submit">Create account</button>
+                {register.isError && <p className="auth-form__error" role="alert">{register.error.message}</p>}
+
+                <button type="submit" className="auth-form__submit" disabled={register.isPending}>
+                    {register.isPending ? 'Creating account…' : 'Create account'}
+                </button>
             </form>
 
             <p className="auth-form__footer">
