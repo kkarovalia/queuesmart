@@ -1,0 +1,94 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  user
+  admin
+}
+
+model User {
+  id            String         @id @default(auto()) @map("_id") @db.ObjectId
+  email         String         @unique
+  passwordHash  String
+  role          UserRole
+  queueEntries  QueueEntry[]
+  notifications Notification[]
+}
+
+enum PriorityLevel {
+  low
+  medium
+  high
+}
+
+enum ServiceStatus {
+  open
+  closed
+}
+
+model Service {
+  id                      String        @id @default(auto()) @map("_id") @db.ObjectId
+  name                    String        @unique
+  description             String
+  expectedDurationMinutes Int
+  priority                PriorityLevel
+  status                  ServiceStatus
+  queueEntries            QueueEntry[]
+}
+
+enum QueueEntryStatus {
+  waiting
+  almost_ready
+  served
+  left
+}
+
+enum WaitlistOutcome {
+  seated
+  cancelled
+  no_show
+}
+
+model QueueEntry {
+  id          String           @id @default(auto()) @map("_id") @db.ObjectId
+  serviceId   String           @db.ObjectId
+  userId      String           @db.ObjectId
+  partySize   Int
+  priority    PriorityLevel?
+  status      QueueEntryStatus
+  outcome     WaitlistOutcome?
+  waitMinutes Int?
+  joinedAt    DateTime         @default(now())
+  servedAt    DateTime?
+  service     Service          @relation(fields: [serviceId], references: [id])
+  user        User             @relation(fields: [userId], references: [id])
+}
+
+enum NotificationKind {
+  queue_joined
+  almost_ready
+  served
+}
+
+model Notification {
+  id        String           @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String           @db.ObjectId
+  kind      NotificationKind
+  message   String
+  createdAt DateTime         @default(now())
+  read      Boolean
+  user      User             @relation(fields: [userId], references: [id])
+}
