@@ -1,0 +1,25 @@
+services:
+  backend:
+    build:
+      target: dev
+    command: sh -c "npx prisma generate && npm run dev"
+    volumes:
+      - ./backend/src:/app/src
+      - ./backend/prisma:/app/prisma
+      - /app/node_modules
+    environment:
+      NODE_ENV: development
+    ports:
+      - "3001:3001"
+      - "9229:9229"   # optional: node --inspect debugging
+
+  frontend:
+    build:
+      target: dev
+    command: npm run dev -- --host
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/index.html:/app/index.html
+      - /app/node_modules
+    ports:
+      - "5173:5173"

@@ -1,4 +1,17 @@
-.env
+# Mongo data
+mongo/data/
+
+# Backend/frontend build artifacts and deps
+**/node_modules/
+**/dist/
+
+# Env files with secrets
+**/.env
+**/.env.*
+!**/.env.example
+
+# Prisma files
+backend/src/generated
 
 # Editor directories and files
 .vscode/*

@@ -1,13 +1,52 @@
 services:
   mongodb:
-    image: mongo
+    image: nesvet/mongo-rs
     container_name: queuesmart-mongodb
     restart: unless-stopped
-    ports:
-      - "27017:27017"
     environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASS}
+      MONGO_USER: ${MONGO_ROOT_USER}
+      MONGO_PASSWORD: ${MONGO_ROOT_PASS}
     volumes:
-      - ./data/db:/data/db
-      - ./data/configdb:/data/configdb
+      - ./mongo/data:/data/db
+    networks:
+      - queuesmart-net
+
+  backend:
+    build:
+      context: ./backend
+      target: production
+    container_name: queuesmart-backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: mongodb://${MONGO_ROOT_USER}:${MONGO_ROOT_PASS}@mongodb:27017/queuesmart?authSource=admin&replicaSet=rs0
+      JWT_SECRET: ${JWT_SECRET}
+      NODE_ENV: production
+    ports:
+      - "3001:3001"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - queuesmart-net
+
+  frontend:
+    build:
+      context: ./frontend
+      target: production
+      args:
+        VITE_API_URL: /api
+    container_name: queuesmart-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      backend:
+        condition: service_started
+    networks:
+      - queuesmart-net
+
+networks:
+  queuesmart-net:
+    driver: bridge
