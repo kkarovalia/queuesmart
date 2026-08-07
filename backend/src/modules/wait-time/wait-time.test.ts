@@ -1,7 +1,18 @@
-import { describe, expect, it } from 'vitest'
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import request from 'supertest'
 import { createApp } from '../../app.js'
+import { queueEntries } from '../../data/store.js'
 import { calculateEstimatedWaitMinutes } from './router.js'
+
+// POST /serve-next is admin-only (A4). One real login for the whole file.
+let adminAuthHeader: string
+
+beforeAll(async () => {
+    const res = await request(createApp())
+        .post('/api/auth/login')
+        .send({ email: 'admin@example.com', password: 'demo-admin' })
+    adminAuthHeader = `Bearer ${res.body.token}`
+})
 
 describe('wait-time module', () => {
     describe('calculateEstimatedWaitMinutes (core business logic)', () => {
@@ -34,6 +45,20 @@ describe('wait-time module', () => {
     })
 
     describe('GET /api/wait-time/:serviceId/entry/:entryId', () => {
+        // Only the svc-3 tests below join/serve — svc-1's seeded entries
+        // (q-1, q-2, used by the tests above) are untouched by this. Without
+        // this reset, a party left in svc-3's queue by one test (e.g. one
+        // that expected serve-next to remove it but the request failed)
+        // silently shifts everyone's position in whichever svc-3 test runs
+        // next, which is exactly what happened before this existed.
+        beforeEach(() => {
+            for (let i = queueEntries.length - 1; i >= 0; i -= 1) {
+                if (queueEntries[i].serviceId === 'svc-3') {
+                    queueEntries.splice(i, 1)
+                }
+            }
+        })
+
         it('returns position and estimate for a specific queue entry', async () => {
             const app = createApp()
             const res = await request(app).get('/api/wait-time/svc-1/entry/q-2')
@@ -73,7 +98,7 @@ describe('wait-time module', () => {
                 .send({ userId: 'served-user', partySize: 2 })
             const servedEntryId = joinRes.body.id
 
-            await request(app).post('/api/queue/svc-3/serve-next')
+            await request(app).post('/api/queue/svc-3/serve-next').set('Authorization', adminAuthHeader)
 
             const res = await request(app).get(`/api/wait-time/svc-3/entry/${servedEntryId}`)
             expect(res.status).toBe(400)

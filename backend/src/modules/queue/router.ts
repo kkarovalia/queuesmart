@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { queueEntries, services } from '../../data/store.js'
 import type { PriorityLevel, QueueEntry, Service } from '../../types.js'
 import { notifyAlmostReady, notifyQueueJoined, notifyServed } from '../notifications/router.js'
+import { requireAuth, requireRole } from '../../middleware/auth.js'
 
 export const queueRouter = Router()
 
@@ -94,7 +95,7 @@ function nextEntryId(): string {
 
 // Admin view: the current queue for one service, in serving order, with each
 // party's 1-based position attached so the UI doesn't have to re-derive it.
-queueRouter.get('/:serviceId', (req, res) => {
+queueRouter.get('/:serviceId', requireAuth, requireRole('admin'), (req, res) => {
     const { serviceId } = req.params
     const service = services.find(item => item.id === serviceId)
     if (!service) {
@@ -212,7 +213,7 @@ queueRouter.post('/:serviceId/leave', (req, res) => {
 
 // Admin action: seat the party at the front of the line, then promote the next
 // one. Returns both, so the admin UI can show who was served and who's now up.
-queueRouter.post('/:serviceId/serve-next', (req, res) => {
+queueRouter.post('/:serviceId/serve-next', requireAuth, requireRole('admin'), (req, res) => {
     const { serviceId } = req.params
 
     const service = services.find(item => item.id === serviceId)

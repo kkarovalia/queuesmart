@@ -18,7 +18,14 @@ services:
     container_name: queuesmart-backend
     restart: unless-stopped
     environment:
-      DATABASE_URL: mongodb://${MONGO_ROOT_USER}:${MONGO_ROOT_PASS}@mongodb:27017/queuesmart?authSource=admin&replicaSet=rs0
+      # directConnection=true, not replicaSet=rs0: the mongo image's replica
+      # set is a single member that advertises itself as "localhost:27017"
+      # with no way to override that (see nesvet/mongo-rs's entrypoint.sh) —
+      # fine for connections from inside that container, but any other
+      # container that discovers the replica-set topology gets told to
+      # reconnect to a "localhost" that isn't itself. directConnection skips
+      # that topology discovery and just talks to the address in this URL.
+      DATABASE_URL: mongodb://${MONGO_ROOT_USER}:${MONGO_ROOT_PASS}@mongodb:27017/queuesmart?authSource=admin&directConnection=true
       JWT_SECRET: ${JWT_SECRET}
       NODE_ENV: production
     ports:

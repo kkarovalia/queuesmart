@@ -1,7 +1,6 @@
 import * as argon2 from "argon2";
 import { Router } from 'express'
-import { users } from '../../data/store.js'
-import { createUser, getUserByEmail, getUserById } from "../../database.js";
+import { createUser, EmailAlreadyRegisteredError, getUserByEmail, getUserById } from "../../database.js";
 import { requireAuth, signToken, type AuthedRequest } from "../../middleware/auth.js";
 
 export const authRouter = Router()
@@ -25,13 +24,26 @@ authRouter.post('/register', async (req, res) => {
         return
     }
 
-    if (users.some(user => user.email === email)) {
+    if (await getUserByEmail(email)) {
         res.status(409).json({ error: 'An account with this email already exists' })
         return
     }
 
     const passwordHash = await argon2.hash(password)
-    const user = await createUser({ email, passwordHash, role: 'user' })
+
+    let user
+    try {
+        user = await createUser({ email, passwordHash, role: 'user' })
+    } catch (error) {
+        if (error instanceof EmailAlreadyRegisteredError) {
+            // Two registrations for the same email raced past the check
+            // above; the database's unique index is the actual source of
+            // truth here.
+            res.status(409).json({ error: 'An account with this email already exists' })
+            return
+        }
+        throw error
+    }
 
     const token = signToken({ sub: user.id, role: user.role })
     res.status(201).json({ token, id: user.id, email: user.email, role: user.role })

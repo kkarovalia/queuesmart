@@ -1,8 +1,15 @@
 services:
+  mongodb:
+    # Dev-only: lets `npm test`/Prisma Studio run from the host against the
+    # same database the containers use, instead of only being reachable
+    # inside the compose network.
+    ports:
+      - "27017:27017"
+
   backend:
     build:
       target: dev
-    command: sh -c "npx prisma generate && npm run dev"
+    command: sh -c "npx prisma generate && npx prisma db push && npx prisma db seed && npm run dev"
     volumes:
       - ./backend/src:/app/src
       - ./backend/prisma:/app/prisma

@@ -1,17 +1,21 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import request from 'supertest'
 import { createApp } from '../../app.js'
-import { users } from '../../data/store.js'
+import { PrismaClient } from '../../generated/prisma/client.js'
 
-// The in-memory store is a module-level singleton shared by every test in
-// this file. Capture the real seed users (with their already-computed argon2
-// hashes) once, then restore that exact state before each test, same pattern
-// as queue.test.ts's resetQueue.
-const seedUsers = [...users]
+// A4: auth is backed by real MongoDB now, which — unlike the old in-memory
+// store — persists across separate `npm test` runs, not just across tests
+// within one run. A test that registers a new user leaves it in the database
+// for next time, which then turns "creates a new user" into an unexpected
+// 409 on the second run. Delete anything a previous run created before each
+// test, leaving only the two demo accounts docker-compose's seed step
+// creates (jamie@example.com / admin@example.com), which the login/duplicate
+// tests below depend on already existing.
+const prisma = new PrismaClient()
+const SEEDED_EMAILS = ['jamie@example.com', 'admin@example.com']
 
-beforeEach(() => {
-    users.length = 0
-    users.push(...seedUsers)
+beforeEach(async () => {
+    await prisma.user.deleteMany({ where: { email: { notIn: SEEDED_EMAILS } } })
 })
 
 describe('auth module', () => {

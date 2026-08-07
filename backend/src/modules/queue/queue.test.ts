@@ -1,9 +1,22 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import request from 'supertest'
 import { createApp } from '../../app.js'
 import { notifications, queueEntries, services } from '../../data/store.js'
 import type { QueueEntry, Service } from '../../types.js'
 import { getCurrentQueue, resolveEntryPriority, sortQueueEntries, syncAlmostReady } from './router.js'
+
+// GET /:serviceId and POST /serve-next are admin-only (A4: per A3 grading
+// feedback, these were previously unprotected). One real login for the whole
+// file — the token doesn't depend on queueEntries/services state, so there's
+// no need to re-authenticate per test.
+let adminAuthHeader: string
+
+beforeAll(async () => {
+    const res = await request(createApp())
+        .post('/api/auth/login')
+        .send({ email: 'admin@example.com', password: 'demo-admin' })
+    adminAuthHeader = `Bearer ${res.body.token}`
+})
 
 // svc-1 "Dinner Waitlist" is open with priority 'high'; svc-4 "Private Dining"
 // is the closed one. Both come from the shared seed data in data/store.ts.
@@ -193,7 +206,7 @@ describe('GET /api/queue/:serviceId', () => {
             entry({ id: 'q-high', userId: 'u-high', joinedAt: '2026-07-10T18:30:00Z', priority: 'high' }),
         ])
 
-        const res = await request(createApp()).get(`/api/queue/${OPEN_SERVICE}`)
+        const res = await request(createApp()).get(`/api/queue/${OPEN_SERVICE}`).set('Authorization', adminAuthHeader)
 
         expect(res.status).toBe(200)
         expect(res.body).toHaveLength(2)
@@ -204,21 +217,21 @@ describe('GET /api/queue/:serviceId', () => {
     it('spells out the inherited priority for a party that did not set one', async () => {
         resetQueue([entry({ id: 'q-1', userId: 'u-1', joinedAt: '2026-07-10T18:00:00Z' })])
 
-        const res = await request(createApp()).get(`/api/queue/${OPEN_SERVICE}`)
+        const res = await request(createApp()).get(`/api/queue/${OPEN_SERVICE}`).set('Authorization', adminAuthHeader)
 
         expect(res.status).toBe(200)
         expect(res.body[0].priority).toBe('high')
     })
 
     it('returns an empty array when nobody is waiting', async () => {
-        const res = await request(createApp()).get(`/api/queue/${OPEN_SERVICE}`)
+        const res = await request(createApp()).get(`/api/queue/${OPEN_SERVICE}`).set('Authorization', adminAuthHeader)
 
         expect(res.status).toBe(200)
         expect(res.body).toEqual([])
     })
 
     it('returns 404 for a service that does not exist', async () => {
-        const res = await request(createApp()).get('/api/queue/svc-nope')
+        const res = await request(createApp()).get('/api/queue/svc-nope').set('Authorization', adminAuthHeader)
 
         expect(res.status).toBe(404)
         expect(res.body.error).toBe('Service not found')
@@ -486,7 +499,7 @@ describe('POST /api/queue/:serviceId/serve-next', () => {
             entry({ id: 'q-2', userId: 'u-2', joinedAt: '2026-07-10T18:10:00Z' }),
         ])
 
-        const res = await request(createApp()).post(`/api/queue/${OPEN_SERVICE}/serve-next`)
+        const res = await request(createApp()).post(`/api/queue/${OPEN_SERVICE}/serve-next`).set('Authorization', adminAuthHeader)
 
         expect(res.status).toBe(200)
         expect(res.body.served.id).toBe('q-1')
@@ -500,7 +513,7 @@ describe('POST /api/queue/:serviceId/serve-next', () => {
             entry({ id: 'q-high', userId: 'u-high', joinedAt: '2026-07-10T18:30:00Z', priority: 'high' }),
         ])
 
-        const res = await request(createApp()).post(`/api/queue/${OPEN_SERVICE}/serve-next`)
+        const res = await request(createApp()).post(`/api/queue/${OPEN_SERVICE}/serve-next`).set('Authorization', adminAuthHeader)
 
         expect(res.body.served.id).toBe('q-high')
     })
@@ -511,7 +524,7 @@ describe('POST /api/queue/:serviceId/serve-next', () => {
             entry({ id: 'q-2', userId: 'u-2', joinedAt: '2026-07-10T18:10:00Z' }),
         ])
 
-        const res = await request(createApp()).post(`/api/queue/${OPEN_SERVICE}/serve-next`)
+        const res = await request(createApp()).post(`/api/queue/${OPEN_SERVICE}/serve-next`).set('Authorization', adminAuthHeader)
 
         expect(res.body.nowAlmostReady.id).toBe('q-2')
         expect(res.body.nowAlmostReady.status).toBe('almost-ready')
@@ -523,7 +536,7 @@ describe('POST /api/queue/:serviceId/serve-next', () => {
             entry({ id: 'q-2', userId: 'u-2', joinedAt: '2026-07-10T18:10:00Z' }),
         ])
 
-        await request(createApp()).post(`/api/queue/${OPEN_SERVICE}/serve-next`)
+        await request(createApp()).post(`/api/queue/${OPEN_SERVICE}/serve-next`).set('Authorization', adminAuthHeader)
 
         expect(notifications).toHaveLength(2)
         expect(notifications[0]).toMatchObject({ userId: 'u-1', kind: 'served' })
@@ -533,7 +546,7 @@ describe('POST /api/queue/:serviceId/serve-next', () => {
     it('does not send an almost-ready notification when nobody is left to promote', async () => {
         resetQueue([entry({ id: 'q-1', userId: 'u-1', joinedAt: '2026-07-10T18:00:00Z' })])
 
-        await request(createApp()).post(`/api/queue/${OPEN_SERVICE}/serve-next`)
+        await request(createApp()).post(`/api/queue/${OPEN_SERVICE}/serve-next`).set('Authorization', adminAuthHeader)
 
         expect(notifications).toHaveLength(1)
         expect(notifications[0]).toMatchObject({ userId: 'u-1', kind: 'served' })
@@ -542,7 +555,7 @@ describe('POST /api/queue/:serviceId/serve-next', () => {
     it('reports nobody next when it served the last party in line', async () => {
         resetQueue([entry({ id: 'q-1', userId: 'u-1', joinedAt: '2026-07-10T18:00:00Z' })])
 
-        const res = await request(createApp()).post(`/api/queue/${OPEN_SERVICE}/serve-next`)
+        const res = await request(createApp()).post(`/api/queue/${OPEN_SERVICE}/serve-next`).set('Authorization', adminAuthHeader)
 
         expect(res.body.served.id).toBe('q-1')
         expect(res.body.nowAlmostReady).toBeNull()
@@ -558,12 +571,12 @@ describe('POST /api/queue/:serviceId/serve-next', () => {
 
         const served: string[] = []
         for (let call = 0; call < 3; call += 1) {
-            const res = await request(app).post(`/api/queue/${OPEN_SERVICE}/serve-next`)
+            const res = await request(app).post(`/api/queue/${OPEN_SERVICE}/serve-next`).set('Authorization', adminAuthHeader)
             served.push(res.body.served.id)
         }
 
         expect(served).toEqual(['q-1', 'q-2', 'q-3'])
-        const lastCall = await request(app).post(`/api/queue/${OPEN_SERVICE}/serve-next`)
+        const lastCall = await request(app).post(`/api/queue/${OPEN_SERVICE}/serve-next`).set('Authorization', adminAuthHeader)
         expect(lastCall.status).toBe(404)
     })
 
@@ -573,20 +586,20 @@ describe('POST /api/queue/:serviceId/serve-next', () => {
             entry({ id: 'q-2', userId: 'u-2', joinedAt: '2026-07-10T18:10:00Z' }),
         ])
 
-        const res = await request(createApp()).post(`/api/queue/${OPEN_SERVICE}/serve-next`)
+        const res = await request(createApp()).post(`/api/queue/${OPEN_SERVICE}/serve-next`).set('Authorization', adminAuthHeader)
 
         expect(res.body.served.id).toBe('q-2')
     })
 
     it('returns 404 when nobody is waiting', async () => {
-        const res = await request(createApp()).post(`/api/queue/${OPEN_SERVICE}/serve-next`)
+        const res = await request(createApp()).post(`/api/queue/${OPEN_SERVICE}/serve-next`).set('Authorization', adminAuthHeader)
 
         expect(res.status).toBe(404)
         expect(res.body.error).toBe('No one is waiting for this service')
     })
 
     it('returns 404 for a service that does not exist', async () => {
-        const res = await request(createApp()).post('/api/queue/svc-nope/serve-next')
+        const res = await request(createApp()).post('/api/queue/svc-nope/serve-next').set('Authorization', adminAuthHeader)
 
         expect(res.status).toBe(404)
         expect(res.body.error).toBe('Service not found')

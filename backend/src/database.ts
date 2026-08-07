@@ -1,18 +1,17 @@
-import { 
-    PrismaClient, 
-    User, 
-    UserRole, 
-    Service, 
-    ServiceStatus,
-    PriorityLevel,
-    QueueEntry,
-    QueueEntryStatus, 
-    WaitlistOutcome,
-    Notification,
-    NotificationKind,
+import {
+    PrismaClient,
+    User,
+    UserRole,
+    Service,
 } from "./generated/prisma/client.js";
-import { users, services } from "./data/store.js";
+import { services } from "./data/store.js";
 import type { ServiceInput } from './types.js'
+
+// Queue/Notification integration (Nelson, Kashf) will need QueueEntry,
+// QueueEntryStatus, WaitlistOutcome, Notification, NotificationKind,
+// ServiceStatus, PriorityLevel from generated/prisma/client.js — import
+// those in this file as needed when those Prisma calls get built out, same
+// as User/Service above. Left out for now so the build stays green.
 
 const prisma = new PrismaClient()
 
@@ -47,7 +46,15 @@ export async function getUserByEmail(email: string): Promise<User | undefined> {
 }
 
 export async function getUserById(id: string): Promise<User | undefined> {
-    return users.find(user => user.id === id)
+    try {
+        return await prisma.user.findUnique({ where: { id } }) ?? undefined
+    } catch {
+        // Mongo ids are ObjectIds under the hood; Prisma throws rather than
+        // returning null for a string that isn't validly-shaped, which would
+        // otherwise turn a stale/forged JWT `sub` into a 500 instead of the
+        // 404 the auth router expects for "no such user".
+        return undefined
+    }
 }
 
 export interface NewUserInput {
@@ -56,13 +63,25 @@ export interface NewUserInput {
     role: UserRole
 }
 
-export async function createUser(input: NewUserInput): Promise<User> {
-    const user: User = {
-        id: `user-${users.length + 1}`,
-        ...input,
+export class EmailAlreadyRegisteredError extends Error {
+    constructor(email: string) {
+        super(`Email already registered: ${email}`)
+        this.name = 'EmailAlreadyRegisteredError'
     }
-    users.push(user)
-    return user
+}
+
+export async function createUser(input: NewUserInput): Promise<User> {
+    try {
+        return await prisma.user.create({ data: input })
+    } catch (error) {
+        // P2002 = Prisma's unique-constraint-violation code, thrown here if
+        // two registrations for the same email race each other between the
+        // auth router's own getUserByEmail check and this insert.
+        if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2002') {
+            throw new EmailAlreadyRegisteredError(input.email)
+        }
+        throw error
+    }
 }
 
 export async function getServices(): Promise<Service[]> {
