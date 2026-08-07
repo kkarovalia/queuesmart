@@ -1,5 +1,6 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import request from 'supertest'
+import * as argon2 from 'argon2'
 import { createApp } from '../../app.js'
 import { PrismaClient } from '../../generated/prisma/client.js'
 
@@ -13,6 +14,21 @@ import { PrismaClient } from '../../generated/prisma/client.js'
 // tests below depend on already existing.
 const prisma = new PrismaClient()
 const SEEDED_EMAILS = ['jamie@example.com', 'admin@example.com']
+
+beforeAll(async () => {
+    const userPasswordHash = await argon2.hash('demo-user')
+    const adminPasswordHash = await argon2.hash('demo-admin')
+    await prisma.user.upsert({
+        where: { email: 'jamie@example.com' },
+        update: { passwordHash: userPasswordHash, role: 'user' },
+        create: { email: 'jamie@example.com', passwordHash: userPasswordHash, role: 'user' },
+    })
+    await prisma.user.upsert({
+        where: { email: 'admin@example.com' },
+        update: { passwordHash: adminPasswordHash, role: 'admin' },
+        create: { email: 'admin@example.com', passwordHash: adminPasswordHash, role: 'admin' },
+    })
+})
 
 beforeEach(async () => {
     await prisma.user.deleteMany({ where: { email: { notIn: SEEDED_EMAILS } } })

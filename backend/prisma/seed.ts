@@ -10,6 +10,37 @@ const DEMO_USERS = [
     { email: 'admin@example.com', password: 'demo-admin', role: 'admin' as const },
 ]
 
+const DEMO_SERVICES = [
+    {
+        name: 'Dinner Waitlist',
+        description: 'General dining room seating for walk-in guests.',
+        expectedDurationMinutes: 45,
+        priority: 'high' as const,
+        status: 'open' as const,
+    },
+    {
+        name: 'Bar Seating',
+        description: 'First-come bar seats for smaller parties.',
+        expectedDurationMinutes: 30,
+        priority: 'medium' as const,
+        status: 'open' as const,
+    },
+    {
+        name: 'Patio Seating',
+        description: 'Outdoor seating when weather and capacity allow.',
+        expectedDurationMinutes: 40,
+        priority: 'medium' as const,
+        status: 'open' as const,
+    },
+    {
+        name: 'Private Dining',
+        description: 'Private room seating for larger parties and special events.',
+        expectedDurationMinutes: 120,
+        priority: 'high' as const,
+        status: 'closed' as const,
+    },
+]
+
 async function main() {
     for (const { email, password, role } of DEMO_USERS) {
         const existing = await prisma.user.findUnique({ where: { email } })
@@ -20,6 +51,15 @@ async function main() {
         const passwordHash = await argon2.hash(password)
         await prisma.user.create({ data: { email, passwordHash, role } })
         console.log(`Seeded ${email} (${role})`)
+    }
+
+    for (const service of DEMO_SERVICES) {
+        await prisma.service.upsert({
+            where: { name: service.name },
+            update: service,
+            create: service,
+        })
+        console.log(`Seeded service ${service.name}`)
     }
 }
 

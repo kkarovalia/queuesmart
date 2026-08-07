@@ -7,13 +7,10 @@ import {
     joinQueue as joinQueueRequest,
     leaveQueue as leaveQueueRequest,
     fetchEntryWaitStatus,
+    useUser,
 } from '../../api'
 import { QueueFlowContext } from './QueueFlowContext'
 import type { ActiveQueueEntry, QueueFormData } from '../../types/queue'
-
-// TODO: use the real logged-in user's id once Ian's auth module issues sessions
-// (matches the placeholder id in api.ts's fetchUser()/backend's seed user).
-const CURRENT_USER_ID = '123'
 
 const nowLabel = () =>
     new Intl.DateTimeFormat('en-US', {
@@ -27,25 +24,26 @@ function formatWait(minutes: number): string {
 
 export function QueueFlowProvider({ children }: { children: ReactNode }) {
     const [activeQueue, setActiveQueue] = useState<ActiveQueueEntry | null>(null)
+    const userQuery = useUser()
+    const userId = userQuery.data?.id
     const servicesQuery = useServices()
-    const notificationsQuery = useNotifications(CURRENT_USER_ID)
+    const notificationsQuery = useNotifications(userId)
     const markNotificationRead = useMarkNotificationRead()
     const queryClient = useQueryClient()
 
     const joinQueue = async (queueForm: QueueFormData) => {
         const service = servicesQuery.data?.find((item) => item.id === queueForm.serviceId)
-        if (!service) {
+        if (!service || !userId) {
             return
         }
 
         const entry = await joinQueueRequest({
             serviceId: queueForm.serviceId,
-            userId: CURRENT_USER_ID,
             partySize: queueForm.partySize,
         })
         // Joining creates a notification server-side; without this the UI
         // wouldn't see it until the notifications query's staleTime lapses.
-        queryClient.invalidateQueries({ queryKey: ['notifications', CURRENT_USER_ID] })
+        queryClient.invalidateQueries({ queryKey: ['notifications', userId] })
 
         const waitStatus = await fetchEntryWaitStatus(queueForm.serviceId, entry.id)
 
@@ -64,7 +62,7 @@ export function QueueFlowProvider({ children }: { children: ReactNode }) {
         if (!activeQueue) {
             return
         }
-        await leaveQueueRequest({ serviceId: activeQueue.serviceId, userId: CURRENT_USER_ID })
+        await leaveQueueRequest({ serviceId: activeQueue.serviceId })
         setActiveQueue(null)
     }
 
@@ -80,7 +78,7 @@ export function QueueFlowProvider({ children }: { children: ReactNode }) {
         const waitStatus = await fetchEntryWaitStatus(activeQueue.serviceId, activeQueue.id)
         // A status change here (promoted to almost-ready, or served) means an
         // admin action created a notification for this user server-side.
-        queryClient.invalidateQueries({ queryKey: ['notifications', CURRENT_USER_ID] })
+        queryClient.invalidateQueries({ queryKey: ['notifications', userId] })
 
         if (!waitStatus) {
             // No longer in the active queue and we didn't leave voluntarily, so

@@ -4,7 +4,6 @@ import {
     UserRole,
     Service,
 } from "./generated/prisma/client.js";
-import { services } from "./data/store.js";
 import type { ServiceInput } from './types.js'
 
 // Queue/Notification integration (Nelson, Kashf) will need QueueEntry,
@@ -13,7 +12,7 @@ import type { ServiceInput } from './types.js'
 // those in this file as needed when those Prisma calls get built out, same
 // as User/Service above. Left out for now so the build stays green.
 
-const prisma = new PrismaClient()
+export const prisma = new PrismaClient()
 
 // Important stuff for A4:
 // getUserByEmail shows one of many ways to interact with the db using prisma.
@@ -85,36 +84,34 @@ export async function createUser(input: NewUserInput): Promise<User> {
 }
 
 export async function getServices(): Promise<Service[]> {
-    return services
+    return prisma.service.findMany({ orderBy: { name: 'asc' } })
 }
  
 export async function getServiceById(id: string): Promise<Service | undefined> {
-    return services.find(service => service.id === id)
+    try {
+        return await prisma.service.findUnique({ where: { id } }) ?? undefined
+    } catch {
+        return undefined
+    }
 }
  
 export async function createService(input: ServiceInput): Promise<Service> {
-    const service: Service = {
-        id: `svc-${services.length + 1}`,
-        ...input,
-        status: 'open',
-    }
-    services.push(service)
-    return service
+    return prisma.service.create({ data: { ...input, status: 'open' } })
 }
  
 export async function updateService(id: string, input: ServiceInput): Promise<Service | undefined> {
-    const service = services.find(item => item.id === id)
-    if (!service) return undefined
-    service.name = input.name
-    service.description = input.description
-    service.expectedDurationMinutes = input.expectedDurationMinutes
-    service.priority = input.priority
-    return service
+    try {
+        return await prisma.service.update({ where: { id }, data: input })
+    } catch {
+        return undefined
+    }
 }
 
 export async function toggleServiceStatus(id: string): Promise<Service | undefined> {
-    const service = services.find(item => item.id === id)
+    const service = await getServiceById(id)
     if (!service) return undefined
-    service.status = service.status === 'open' ? 'closed' : 'open'
-    return service
+    return prisma.service.update({
+        where: { id },
+        data: { status: service.status === 'open' ? 'closed' : 'open' },
+    })
 }

@@ -537,7 +537,7 @@ export interface QueueEntryView {
 }
 
 async function fetchQueueForService(serviceId: string): Promise<QueueEntryView[]> {
-    const response = await fetch(`${API_BASE_URL}/api/queue/${serviceId}`);
+    const response = await fetch(`${API_BASE_URL}/api/queue/${serviceId}`, { headers: authHeaders() });
     if (!response.ok) await parseApiError(response);
     return response.json();
 }
@@ -554,15 +554,14 @@ export function useQueueForService(serviceId: string): QueueForServiceQuery {
 
 interface JoinQueueArgs {
     serviceId: string;
-    userId: string;
     partySize: number;
 }
 
-export async function joinQueue({ serviceId, userId, partySize }: JoinQueueArgs): Promise<QueueEntryView> {
+export async function joinQueue({ serviceId, partySize }: JoinQueueArgs): Promise<QueueEntryView> {
     const response = await fetch(`${API_BASE_URL}/api/queue/${serviceId}/join`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, partySize }),
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ partySize }),
     });
     if (!response.ok) await parseApiError(response);
     return response.json();
@@ -570,14 +569,12 @@ export async function joinQueue({ serviceId, userId, partySize }: JoinQueueArgs)
 
 interface LeaveQueueArgs {
     serviceId: string;
-    userId: string;
 }
 
-export async function leaveQueue({ serviceId, userId }: LeaveQueueArgs): Promise<void> {
+export async function leaveQueue({ serviceId }: LeaveQueueArgs): Promise<void> {
     const response = await fetch(`${API_BASE_URL}/api/queue/${serviceId}/leave`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId }),
+        headers: authHeaders(),
     });
     if (!response.ok) await parseApiError(response);
 }
@@ -588,7 +585,10 @@ interface ServeNextResult {
 }
 
 async function serveNextInQueue(serviceId: string): Promise<ServeNextResult> {
-    const response = await fetch(`${API_BASE_URL}/api/queue/${serviceId}/serve-next`, { method: 'POST' });
+    const response = await fetch(`${API_BASE_URL}/api/queue/${serviceId}/serve-next`, {
+        method: 'POST',
+        headers: authHeaders(),
+    });
     if (!response.ok) await parseApiError(response);
     return response.json();
 }
@@ -617,7 +617,9 @@ export interface EntryWaitStatus {
 // existed — the backend tells those apart via 400 vs 404, but the customer
 // queue-status screen just needs to know "still waiting or not" either way.
 export async function fetchEntryWaitStatus(serviceId: string, entryId: string): Promise<EntryWaitStatus | null> {
-    const response = await fetch(`${API_BASE_URL}/api/wait-time/${serviceId}/entry/${entryId}`);
+    const response = await fetch(`${API_BASE_URL}/api/wait-time/${serviceId}/entry/${entryId}`, {
+        headers: authHeaders(),
+    });
     if (response.status === 400 || response.status === 404) return null;
     if (!response.ok) await parseApiError(response);
     return response.json();
@@ -742,10 +744,11 @@ async function fetchNotifications(userId: string): Promise<QueueNotification[]> 
 
 export type NotificationsQuery = UseQueryResult<NoInfer<QueueNotification[]>, Error>;
 
-export function useNotifications(userId: string): NotificationsQuery {
+export function useNotifications(userId: string | undefined): NotificationsQuery {
     return useQuery({
         queryKey: ['notifications', userId],
-        queryFn: () => fetchNotifications(userId),
+        queryFn: () => fetchNotifications(userId!),
+        enabled: Boolean(userId),
         staleTime: 15 * 1000,
     })
 }

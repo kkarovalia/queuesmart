@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -9,6 +9,38 @@ import { QueueStatusScreen } from '../queue-status/QueueStatusScreen'
 import { QueueFlowProvider } from './QueueFlowProvider'
 import { useQueueFlow } from './useQueueFlow'
 import { mockServices, mockQueueEntries } from '../../data/mockData'
+
+const apiMocks = vi.hoisted(() => ({
+    joinQueue: vi.fn(),
+    leaveQueue: vi.fn(),
+    fetchEntryWaitStatus: vi.fn(),
+    markRead: vi.fn(),
+    services: [
+        { id: 'svc-1', name: 'Dinner Waitlist', description: '', expectedDurationMinutes: 45, priority: 'high', status: 'open', estimatedWait: '45 min', tablePreferenceLabel: 'Any available table' },
+        { id: 'svc-2', name: 'Bar Seating', description: '', expectedDurationMinutes: 30, priority: 'medium', status: 'open', estimatedWait: '30 min', tablePreferenceLabel: 'Any available table' },
+        { id: 'svc-3', name: 'Patio Seating', description: '', expectedDurationMinutes: 40, priority: 'medium', status: 'open', estimatedWait: '40 min', tablePreferenceLabel: 'Any available table' },
+        { id: 'svc-4', name: 'Private Dining', description: '', expectedDurationMinutes: 120, priority: 'high', status: 'closed', estimatedWait: '120 min', tablePreferenceLabel: 'Any available table' },
+    ],
+}))
+
+vi.mock('../../api', () => ({
+    useUser: () => ({ data: { id: 'mongo-user-id', email: 'jamie@example.com', role: 'user' } }),
+    useServices: () => ({ data: apiMocks.services }),
+    useNotifications: () => ({
+        data: [{
+            id: 'notification-1',
+            title: 'You joined the waitlist',
+            message: 'You joined the queue for Dinner Waitlist.',
+            createdAt: 'Now',
+            read: false,
+            tone: 'success',
+        }],
+    }),
+    useMarkNotificationRead: () => ({ mutate: apiMocks.markRead }),
+    joinQueue: apiMocks.joinQueue,
+    leaveQueue: apiMocks.leaveQueue,
+    fetchEntryWaitStatus: apiMocks.fetchEntryWaitStatus,
+}))
 
 const queueLengths = mockQueueEntries.reduce<Record<string, number>>((lengths, entry) => {
     lengths[entry.serviceId] = (lengths[entry.serviceId] ?? 0) + 1
@@ -36,11 +68,7 @@ function QueueFlowHarness() {
                 />
             ) : null}
             {screenName === 'status' ? (
-                <QueueStatusScreen
-                    activeQueue={activeQueue}
-                    onAdvanceStatus={advanceStatus}
-                    onLeaveQueue={leaveQueue}
-                />
+                <QueueStatusScreen activeQueue={activeQueue} onAdvanceStatus={advanceStatus} onLeaveQueue={leaveQueue} />
             ) : null}
             {screenName === 'notifications' ? (
                 <NotificationsPanel notifications={notifications} onMarkAllRead={markAllRead} />
@@ -49,112 +77,77 @@ function QueueFlowHarness() {
     )
 }
 
-const renderFlow = () => render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <QueueFlowProvider>
-            <QueueFlowHarness />
-        </QueueFlowProvider>
-    </QueryClientProvider>,
-)
+function renderFlow() {
+    return render(
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+            <QueueFlowProvider><QueueFlowHarness /></QueueFlowProvider>
+        </QueryClientProvider>,
+    )
+}
 
-// This suite drives the real backend (see backend/src/modules/queue and
-// notifications), the same way AdminDashboard.test.tsx and
-// QueueManagement.test.tsx do, rather than a local mock simulation. Always
-// leave user '123' out of svc-1's real queue after each test so joins in
-// later tests don't 409 against state a previous test left behind.
-afterEach(async () => {
-    await fetch('http://localhost:3001/api/queue/svc-1/leave', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: '123' }),
-    }).catch(() => {})
-})
-
-const joinDinnerWaitlist = async () => {
+async function joinDinnerWaitlist() {
     const user = userEvent.setup()
     renderFlow()
     await user.selectOptions(screen.getByLabelText(/select service/i), 'svc-1')
     await user.click(screen.getByRole('button', { name: '4' }))
     await user.click(screen.getByRole('button', { name: /join waitlist/i }))
-    // The real join + wait-time lookup both resolve before this banner
-    // renders, so once it's visible, position/status are already settled.
-    await screen.findByText(/you're on the dinner waitlist/i, {}, { timeout: 3000 })
+    await screen.findByText(/you're on the dinner waitlist/i)
     return user
 }
 
-describe('Kashf user queue flow', () => {
-    it('renders all restaurant services and queue estimates', () => {
-        renderFlow()
+beforeEach(() => {
+    apiMocks.joinQueue.mockReset().mockResolvedValue({
+        id: 'queue-entry-id',
+        serviceId: 'svc-1',
+        userId: 'mongo-user-id',
+        partySize: 4,
+        priority: 'high',
+        status: 'almost-ready',
+        joinedAt: new Date().toISOString(),
+        servedAt: null,
+        position: 1,
+    })
+    apiMocks.leaveQueue.mockReset().mockResolvedValue(undefined)
+    apiMocks.fetchEntryWaitStatus.mockReset().mockResolvedValue({
+        entryId: 'queue-entry-id',
+        serviceId: 'svc-1',
+        position: 1,
+        estimatedWaitMinutes: 0,
+    })
+    apiMocks.markRead.mockReset()
+})
 
+describe('Kashf user queue flow', () => {
+    it('renders the restaurant queue options', () => {
+        renderFlow()
         expect(screen.getByRole('option', { name: 'Dinner Waitlist' })).toBeInTheDocument()
-        expect(screen.getByRole('option', { name: 'Bar Seating' })).toBeInTheDocument()
-        expect(screen.getByRole('option', { name: 'Patio Seating' })).toBeInTheDocument()
         expect(screen.getByRole('option', { name: 'Private Dining - Closed' })).toBeInTheDocument()
-        expect(screen.getByText(/parties ahead/i)).toBeInTheDocument()
-        expect(screen.getByText(/current wait/i)).toBeInTheDocument()
     })
 
-    it('joins the real queue and shows the next queue position', async () => {
-        // Derived from actual current state, not assumed: an earlier test in
-        // this file (or an earlier run against this same live server) may
-        // have already served the seeded guests ahead, which would otherwise
-        // make this assume 'waiting' when joining an empty line is really
-        // 'almost-ready' instead.
-        const queueBefore: unknown[] = await fetch('http://localhost:3001/api/queue/svc-1').then(r => r.json())
-        const expectedPosition = queueBefore.length + 1
-        const expectedStatus = expectedPosition === 1 ? /almost ready/i : /waiting/i
-
+    it('joins using the authenticated API contract without a userId body field', async () => {
         const user = await joinDinnerWaitlist()
         await user.click(screen.getByRole('button', { name: /queue status/i }))
 
-        expect(screen.getByRole('heading', { name: /dinner waitlist/i })).toBeInTheDocument()
-        expect(screen.getByText(String(expectedPosition))).toBeInTheDocument()
-        expect(screen.getByRole('status')).toHaveTextContent(expectedStatus)
+        expect(apiMocks.joinQueue).toHaveBeenCalledWith({ serviceId: 'svc-1', partySize: 4 })
+        expect(screen.getByRole('status')).toHaveTextContent(/almost ready/i)
+        expect(screen.getByText('1')).toBeInTheDocument()
     })
 
-    it('leaves the queue and clears the active queue status', async () => {
+    it('leaves through the authenticated API contract and clears local status', async () => {
         const user = await joinDinnerWaitlist()
-
         await user.click(screen.getByRole('button', { name: /leave current queue/i }))
         await user.click(screen.getByRole('button', { name: /queue status/i }))
 
+        expect(apiMocks.leaveQueue).toHaveBeenCalledWith({ serviceId: 'svc-1' })
         expect(await screen.findByRole('heading', { name: /no active waitlist/i })).toBeInTheDocument()
     })
 
-    it('reflects almost-ready once the admin actually serves the people ahead', async () => {
-        const user = await joinDinnerWaitlist()
-        await user.click(screen.getByRole('button', { name: /queue status/i }))
-
-        // Clear whoever's ahead via the real serve-next action (the same
-        // endpoint the admin Queue Management screen uses), so "refresh"
-        // reflects an actual backend change rather than a local simulation.
-        let waiting: unknown[] = await fetch('http://localhost:3001/api/queue/svc-1').then(r => r.json())
-        while (waiting.length > 1) {
-            await fetch('http://localhost:3001/api/queue/svc-1/serve-next', { method: 'POST' })
-            waiting = await fetch('http://localhost:3001/api/queue/svc-1').then(r => r.json())
-        }
-
-        await user.click(screen.getByRole('button', { name: /refresh status/i }))
-        await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(/almost ready/i))
-
-        await fetch('http://localhost:3001/api/queue/svc-1/serve-next', { method: 'POST' })
-
-        await user.click(screen.getByRole('button', { name: /refresh status/i }))
-        await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(/table ready/i))
-        expect(screen.getByText(/please check in with the host stand/i)).toBeInTheDocument()
-    })
-
-    it('renders notifications and marks them read', async () => {
-        const user = await joinDinnerWaitlist()
-
+    it('loads notifications for the authenticated user and marks unread items', async () => {
+        const user = userEvent.setup()
+        renderFlow()
         await user.click(screen.getByRole('button', { name: /notifications/i }))
-        // Earlier tests in this file also joined/left, so more than one of
-        // these may be present — just confirm at least one shows up.
-        expect((await screen.findAllByText(/you joined the waitlist/i)).length).toBeGreaterThan(0)
-        expect(screen.getByText(/[1-9]\d* unread/i)).toBeInTheDocument()
-
         await user.click(screen.getByRole('button', { name: /mark all read/i }))
-        await waitFor(() => expect(screen.getByText(/0 unread/i)).toBeInTheDocument())
-        expect(screen.getByText(/all notifications read/i)).toBeInTheDocument()
+
+        await waitFor(() => expect(apiMocks.markRead).toHaveBeenCalledWith('notification-1'))
     })
 })

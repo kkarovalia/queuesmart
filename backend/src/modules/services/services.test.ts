@@ -1,20 +1,48 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import request from 'supertest'
 import type { Express } from 'express'
+import * as argon2 from 'argon2'
 import { createApp } from '../../app.js'
-import { services, users } from '../../data/store.js'
+import { prisma } from '../../database.js'
+import type { Service } from '../../generated/prisma/client.js'
 
 // Both arrays are module-level singletons shared by every test in this file
 // (and mutated by the endpoints under test), so reset them to their real seed
 // state before each test — same pattern as queue.test.ts's resetQueue.
-const seedServices = [...services]
-const seedUsers = [...users]
+let baseService: Service
 
-beforeEach(() => {
-    services.length = 0
-    services.push(...seedServices)
-    users.length = 0
-    users.push(...seedUsers)
+beforeAll(async () => {
+    const userPasswordHash = await argon2.hash('demo-user')
+    const adminPasswordHash = await argon2.hash('demo-admin')
+    await prisma.user.upsert({
+        where: { email: 'jamie@example.com' },
+        update: { passwordHash: userPasswordHash, role: 'user' },
+        create: { email: 'jamie@example.com', passwordHash: userPasswordHash, role: 'user' },
+    })
+    await prisma.user.upsert({
+        where: { email: 'admin@example.com' },
+        update: { passwordHash: adminPasswordHash, role: 'admin' },
+        create: { email: 'admin@example.com', passwordHash: adminPasswordHash, role: 'admin' },
+    })
+})
+
+beforeEach(async () => {
+    await prisma.queueEntry.deleteMany()
+    await prisma.service.deleteMany({ where: { name: { startsWith: 'Service Test ' } } })
+    baseService = await prisma.service.create({
+        data: {
+            name: 'Service Test Dinner',
+            description: 'Test service',
+            expectedDurationMinutes: 45,
+            priority: 'high',
+            status: 'open',
+        },
+    })
+})
+
+afterAll(async () => {
+    await prisma.queueEntry.deleteMany()
+    await prisma.service.deleteMany({ where: { name: { startsWith: 'Service Test ' } } })
 })
 
 async function loginAs(app: Express, email: string, password: string): Promise<string> {
@@ -23,7 +51,7 @@ async function loginAs(app: Express, email: string, password: string): Promise<s
 }
 
 const validInput = {
-    name: 'Patio Overflow',
+    name: 'Service Test Patio Overflow',
     description: 'Extra patio seating during peak hours.',
     expectedDurationMinutes: 30,
     priority: 'low',
@@ -68,7 +96,7 @@ describe('services module', () => {
                 .send(validInput)
 
             expect(res.status).toBe(201)
-            expect(res.body.name).toBe('Patio Overflow')
+            expect(res.body.name).toBe('Service Test Patio Overflow')
             expect(res.body.status).toBe('open')
         })
 
@@ -111,19 +139,19 @@ describe('services module', () => {
             const app = createApp()
             const token = await loginAs(app, 'admin@example.com', 'demo-admin')
             const res = await request(app)
-                .put('/api/services/svc-1')
+                .put(`/api/services/${baseService.id}`)
                 .set('Authorization', `Bearer ${token}`)
-                .send({ ...validInput, name: 'Updated Name' })
+                .send({ ...validInput, name: 'Service Test Updated Name' })
 
             expect(res.status).toBe(200)
-            expect(res.body.name).toBe('Updated Name')
+            expect(res.body.name).toBe('Service Test Updated Name')
         })
 
         it('rejects a non-admin user', async () => {
             const app = createApp()
             const token = await loginAs(app, 'jamie@example.com', 'demo-user')
             const res = await request(app)
-                .put('/api/services/svc-1')
+                .put(`/api/services/${baseService.id}`)
                 .set('Authorization', `Bearer ${token}`)
                 .send(validInput)
 
@@ -146,10 +174,10 @@ describe('services module', () => {
         it('toggles an existing service status for an admin', async () => {
             const app = createApp()
             const token = await loginAs(app, 'admin@example.com', 'demo-admin')
-            const before = services.find(item => item.id === 'svc-1')?.status
+            const before = baseService.status
 
             const res = await request(app)
-                .patch('/api/services/svc-1/status')
+                .patch(`/api/services/${baseService.id}/status`)
                 .set('Authorization', `Bearer ${token}`)
 
             expect(res.status).toBe(200)
