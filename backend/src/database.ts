@@ -3,16 +3,14 @@ import {
     User,
     UserRole,
     Service,
+    QueueEntry,
+    WaitlistOutcome as PrismaWaitlistOutcome,
+    Notification,
+    NotificationKind as PrismaNotificationKind,
 } from "./generated/prisma/client.js";
-import type { ServiceInput } from './types.js'
+import type { ServiceInput, NotificationKind, WaitlistOutcome, HistoryRecord } from './types.js'
 
-// Queue/Notification integration (Nelson, Kashf) will need QueueEntry,
-// QueueEntryStatus, WaitlistOutcome, Notification, NotificationKind,
-// ServiceStatus, PriorityLevel from generated/prisma/client.js — import
-// those in this file as needed when those Prisma calls get built out, same
-// as User/Service above. Left out for now so the build stays green.
-
-export const prisma = new PrismaClient()
+const prisma = new PrismaClient()
 
 // Important stuff for A4:
 // getUserByEmail shows one of many ways to interact with the db using prisma.
@@ -41,7 +39,7 @@ export const prisma = new PrismaClient()
 
 export async function getUserByEmail(email: string): Promise<User | undefined> {
     // Working prisma example
-    return await prisma.user.findUnique({where: {email: email}}) ?? undefined // Prisma returns null so must convert
+    return await prisma.user.findUnique({ where: { email: email } }) ?? undefined // Prisma returns null so must convert
 }
 
 export async function getUserById(id: string): Promise<User | undefined> {
@@ -86,7 +84,7 @@ export async function createUser(input: NewUserInput): Promise<User> {
 export async function getServices(): Promise<Service[]> {
     return prisma.service.findMany({ orderBy: { name: 'asc' } })
 }
- 
+
 export async function getServiceById(id: string): Promise<Service | undefined> {
     try {
         return await prisma.service.findUnique({ where: { id } }) ?? undefined
@@ -94,14 +92,97 @@ export async function getServiceById(id: string): Promise<Service | undefined> {
         return undefined
     }
 }
- 
+
 export async function createService(input: ServiceInput): Promise<Service> {
     return prisma.service.create({ data: { ...input, status: 'open' } })
 }
- 
+
 export async function updateService(id: string, input: ServiceInput): Promise<Service | undefined> {
     try {
         return await prisma.service.update({ where: { id }, data: input })
+    } catch {
+        return undefined
+    }
+}
+
+const NOTIFICATION_KIND_TO_PRISMA: Record<NotificationKind, PrismaNotificationKind> = {
+    'queue-joined': 'queue_joined',
+    'almost-ready': 'almost_ready',
+    'served': 'served',
+}
+
+const NOTIFICATION_KIND_FROM_PRISMA: Record<PrismaNotificationKind, NotificationKind> = {
+    queue_joined: 'queue-joined',
+    almost_ready: 'almost-ready',
+    served: 'served',
+}
+
+function toPrismaNotificationKind(kind: NotificationKind): PrismaNotificationKind {
+    return NOTIFICATION_KIND_TO_PRISMA[kind]
+}
+
+function fromPrismaNotificationKind(kind: PrismaNotificationKind): NotificationKind {
+    return NOTIFICATION_KIND_FROM_PRISMA[kind]
+}
+
+const OUTCOME_TO_PRISMA: Record<WaitlistOutcome, PrismaWaitlistOutcome> = {
+    seated: 'seated',
+    cancelled: 'cancelled',
+    'no-show': 'no_show',
+}
+
+const OUTCOME_FROM_PRISMA: Record<PrismaWaitlistOutcome, WaitlistOutcome> = {
+    seated: 'seated',
+    cancelled: 'cancelled',
+    no_show: 'no-show',
+}
+
+export function toPrismaOutcome(outcome: WaitlistOutcome): PrismaWaitlistOutcome {
+    return OUTCOME_TO_PRISMA[outcome]
+}
+
+function fromPrismaOutcome(outcome: PrismaWaitlistOutcome): WaitlistOutcome {
+    return OUTCOME_FROM_PRISMA[outcome]
+}
+
+function toAppNotification(notification: Notification) {
+    return {
+        id: notification.id,
+        userId: notification.userId,
+        kind: fromPrismaNotificationKind(notification.kind),
+        message: notification.message,
+        createdAt: notification.createdAt.toISOString(),
+        read: notification.read,
+    }
+}
+
+export async function createNotificationRecord(userId: string, kind: NotificationKind, message: string) {
+    const notification = await prisma.notification.create({
+        data: {
+            userId,
+            kind: toPrismaNotificationKind(kind),
+            message,
+            read: false,
+        },
+    })
+    return toAppNotification(notification)
+}
+
+export async function getNotificationsByUserId(userId: string) {
+    const notifications = await prisma.notification.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+    })
+    return notifications.map(toAppNotification)
+}
+
+export async function markNotificationRead(notificationId: string) {
+    try {
+        const notification = await prisma.notification.update({
+            where: { id: notificationId },
+            data: { read: true },
+        })
+        return toAppNotification(notification)
     } catch {
         return undefined
     }
@@ -114,4 +195,41 @@ export async function toggleServiceStatus(id: string): Promise<Service | undefin
         where: { id },
         data: { status: service.status === 'open' ? 'closed' : 'open' },
     })
+}
+
+function toHistoryRecord(
+    entry: QueueEntry & { service: { name: string } },
+): HistoryRecord {
+    return {
+        id: entry.id,
+        userId: entry.userId,
+        serviceId: entry.serviceId,
+        serviceName: entry.service.name,
+        partySize: entry.partySize,
+        joinedAt: entry.joinedAt.toISOString(),
+        resolvedAt: entry.resolvedAt!.toISOString(),
+        outcome: fromPrismaOutcome(entry.outcome!),
+        waitMinutes: entry.waitMinutes ?? 0,
+    }
+}
+
+export async function getHistoryByUserId(userId: string) {
+    const entries = await prisma.queueEntry.findMany({
+        where: { userId, resolvedAt: { not: null } },
+        include: { service: true },
+        orderBy: { resolvedAt: 'desc' },
+    })
+    return entries.map(toHistoryRecord)
+}
+
+export async function getAllHistory() {
+    const entries = await prisma.queueEntry.findMany({
+        where: { resolvedAt: { not: null } },
+        include: { service: true, user: true },
+        orderBy: { resolvedAt: 'desc' },
+    })
+    return entries.map((entry: QueueEntry & { service: { name: string }; user: { email: string } }) => ({
+        ...toHistoryRecord(entry),
+        customerEmail: entry.user.email,
+    }))
 }

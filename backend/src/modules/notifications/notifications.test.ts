@@ -1,67 +1,76 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi, beforeEach } from 'vitest'
 import request from 'supertest'
-import { createApp } from '../../app.js'
+
+const mockCreate = vi.fn()
+const mockGetByUser = vi.fn()
+const mockMarkRead = vi.fn()
+
+vi.mock('../../database.js', () => ({
+    createNotificationRecord: (...args: unknown[]) => mockCreate(...args),
+    getNotificationsByUserId: (...args: unknown[]) => mockGetByUser(...args),
+    markNotificationRead: (...args: unknown[]) => mockMarkRead(...args),
+}))
+
 import { notifyQueueJoined, notifyAlmostReady, notifyServed } from './router.js'
-import { notifications } from '../../data/store.js'
+import { createApp } from '../../app.js'
 
 describe('notifications module', () => {
+    beforeEach(() => {
+        mockCreate.mockReset()
+        mockGetByUser.mockReset()
+        mockMarkRead.mockReset()
+    })
+
     describe('notify* helpers (core business logic)', () => {
-        it('creates a queue-joined notification', () => {
-            const before = notifications.length
-            const note = notifyQueueJoined('test-user-1', 'Dinner Waitlist')
+        it('creates a queue-joined notification with the right kind and message', async () => {
+            mockCreate.mockResolvedValue({ id: 'n-1', userId: 'user-1', kind: 'queue-joined', message: 'x', createdAt: 'x', read: false })
 
-            expect(note.kind).toBe('queue-joined')
-            expect(note.userId).toBe('test-user-1')
-            expect(note.message).toContain('Dinner Waitlist')
-            expect(note.read).toBe(false)
-            expect(notifications.length).toBe(before + 1)
+            await notifyQueueJoined('user-1', 'Dinner Waitlist')
+
+            expect(mockCreate).toHaveBeenCalledWith('user-1', 'queue-joined', 'You joined the queue for Dinner Waitlist.')
         })
 
-        it('creates an almost-ready notification', () => {
-            const note = notifyAlmostReady('test-user-2', 'Bar Seating')
-            expect(note.kind).toBe('almost-ready')
+        it('creates an almost-ready notification with the right kind and message', async () => {
+            mockCreate.mockResolvedValue({})
+            await notifyAlmostReady('user-2', 'Bar Seating')
+            expect(mockCreate).toHaveBeenCalledWith('user-2', 'almost-ready', "You're almost up for Bar Seating. Please be ready.")
         })
 
-        it('creates a served notification', () => {
-            const note = notifyServed('test-user-3', 'Patio Seating')
-            expect(note.kind).toBe('served')
+        it('creates a served notification with the right kind and message', async () => {
+            mockCreate.mockResolvedValue({})
+            await notifyServed('user-3', 'Patio Seating')
+            expect(mockCreate).toHaveBeenCalledWith('user-3', 'served', "You've been served for Patio Seating. Enjoy!")
         })
     })
 
     describe('GET /api/notifications/:userId', () => {
-        it("returns only that user's notifications, newest first", async () => {
-            const app = createApp()
-            notifyQueueJoined('history-test-user', 'Dinner Waitlist')
-            notifyAlmostReady('history-test-user', 'Dinner Waitlist')
+        it("returns whatever database.ts's getNotificationsByUserId resolves with", async () => {
+            const fakeNotifications = [{ id: 'n-1', userId: 'user-1', kind: 'queue-joined', message: 'hi', createdAt: 'x', read: false }]
+            mockGetByUser.mockResolvedValue(fakeNotifications)
 
-            const res = await request(app).get('/api/notifications/history-test-user')
+            const app = createApp()
+            const res = await request(app).get('/api/notifications/user-1')
 
             expect(res.status).toBe(200)
-            expect(res.body.length).toBeGreaterThanOrEqual(2)
-            expect(res.body.every((n: { userId: string }) => n.userId === 'history-test-user')).toBe(true)
-        })
-
-        it('returns an empty array for a user with no notifications', async () => {
-            const app = createApp()
-            const res = await request(app).get('/api/notifications/nobody-has-notified-this-user')
-
-            expect(res.status).toBe(200)
-            expect(res.body).toEqual([])
+            expect(res.body).toEqual(fakeNotifications)
+            expect(mockGetByUser).toHaveBeenCalledWith('user-1')
         })
     })
 
     describe('POST /api/notifications/:notificationId/read', () => {
         it('marks a notification as read', async () => {
-            const app = createApp()
-            const note = notifyQueueJoined('read-test-user', 'Dinner Waitlist')
+            mockMarkRead.mockResolvedValue({ id: 'n-1', userId: 'user-1', kind: 'queue-joined', message: 'hi', createdAt: 'x', read: true })
 
-            const res = await request(app).post(`/api/notifications/${note.id}/read`)
+            const app = createApp()
+            const res = await request(app).post('/api/notifications/n-1/read')
 
             expect(res.status).toBe(200)
             expect(res.body.read).toBe(true)
         })
 
-        it('returns 404 for an unknown notification id', async () => {
+        it('returns 404 when database.ts reports the notification does not exist', async () => {
+            mockMarkRead.mockResolvedValue(undefined)
+
             const app = createApp()
             const res = await request(app).post('/api/notifications/does-not-exist/read')
 
