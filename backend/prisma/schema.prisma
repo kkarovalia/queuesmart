@@ -5,9 +5,9 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider = "prisma-client"
+  provider      = "prisma-client"
   binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
-  output   = "../src/generated/prisma"
+  output        = "../src/generated/prisma"
 }
 
 datasource db {
@@ -22,6 +22,8 @@ enum UserRole {
 
 model User {
   id            String         @id @default(auto()) @map("_id") @db.ObjectId
+  name          String
+  phone         String?
   email         String         @unique
   passwordHash  String
   role          UserRole
@@ -72,6 +74,7 @@ model QueueEntry {
   status      QueueEntryStatus
   outcome     WaitlistOutcome?
   waitMinutes Int?
+  position    Int
   joinedAt    DateTime         @default(now())
   resolvedAt  DateTime?
   service     Service          @relation(fields: [serviceId], references: [id])

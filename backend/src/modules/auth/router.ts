@@ -6,8 +6,14 @@ import { requireAuth, signToken, type AuthedRequest } from "../../middleware/aut
 export const authRouter = Router()
 
 authRouter.post('/register', async (req, res) => {
-    const { email, password } = req.body ?? {}
+    const { name, phone, email, password } = req.body ?? {}
     const errors: string[] = []
+
+    if (typeof name !== 'string') {
+        errors.push('name is required')
+    }
+
+    // Add a phone number check here as well
 
     if (typeof email !== 'string' || !email.trim()) {
         errors.push('email is required')
@@ -33,7 +39,7 @@ authRouter.post('/register', async (req, res) => {
 
     let user
     try {
-        user = await createUser({ email, passwordHash, role: 'user' })
+        user = await createUser({ name, email, passwordHash, role: 'user', phone})
     } catch (error) {
         if (error instanceof EmailAlreadyRegisteredError) {
             // Two registrations for the same email raced past the check

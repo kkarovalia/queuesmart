@@ -130,6 +130,7 @@ queueRouter.post('/:serviceId/join', requireAuth, async (req: AuthedRequest, res
                 partySize,
                 priority,
                 status: 'waiting',
+                position: Date.now(),
             },
         })
         await notifyQueueJoined(userId, service.name)
