@@ -4,7 +4,6 @@ import { createApp } from '../../app.js'
 import { prisma } from '../../database.js'
 import type { QueueEntry, Service, User } from '../../generated/prisma/client.js'
 import { signToken } from '../../middleware/auth.js'
-import { notifications } from '../../data/store.js'
 import { getCurrentQueue, resolveEntryPriority, sortQueueEntries, syncAlmostReady } from './router.js'
 
 let user: User
@@ -94,11 +93,17 @@ beforeAll(async () => {
 
 beforeEach(async () => {
     await prisma.queueEntry.deleteMany()
-    notifications.length = 0
+    // A4: notifications are real Prisma records now, not the old in-memory
+    // array — clear them per-test too, or a notification from one test would
+    // still be sitting there for the next test's own assertions to trip over.
+    await prisma.notification.deleteMany({ where: { userId: { in: [user.id, secondUser.id, admin.id] } } })
 })
 
 afterAll(async () => {
     await prisma.queueEntry.deleteMany()
+    // Notifications reference User (required relation) — must go before the
+    // users themselves, or Prisma's relation-mode check rejects the delete.
+    await prisma.notification.deleteMany({ where: { userId: { in: [user.id, secondUser.id, admin.id] } } })
     await prisma.service.deleteMany({ where: { name: { startsWith: 'Queue Test ' } } })
     await prisma.user.deleteMany({ where: { email: { startsWith: 'queue-test-' } } })
 })
@@ -279,7 +284,11 @@ describe('POST /api/queue/:serviceId/join', () => {
             .set('Authorization', userAuth)
             .send({ partySize: 2 })
 
-        expect(notifications.map(note => note.kind)).toEqual(['queue-joined', 'almost-ready'])
+        const created = await prisma.notification.findMany({
+            where: { userId: user.id },
+            orderBy: { createdAt: 'asc' },
+        })
+        expect(created.map(note => note.kind)).toEqual(['queue_joined', 'almost_ready'])
     })
 })
 

@@ -14,10 +14,8 @@ export const notificationsRouter = Router()
 //
 // A4 change: these are now async (they write to the database via
 // database.ts), where they used to be synchronous in-memory pushes.
-// Existing callers in the queue module should await these, but nothing
-// breaks if they don't — the notification still gets created, it just
-// isn't guaranteed to exist yet at the exact moment the caller's response
-// is sent.
+// Callers in the queue module await these so the notification is guaranteed
+// to exist by the time the caller's own response is sent.
 
 export async function notifyQueueJoined(userId: string, serviceName: string) {
     return createNotificationRecord(userId, 'queue-joined', `You joined the queue for ${serviceName}.`)

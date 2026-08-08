@@ -10,7 +10,7 @@ import {
 } from "./generated/prisma/client.js";
 import type { ServiceInput, NotificationKind, WaitlistOutcome, HistoryRecord } from './types.js'
 
-const prisma = new PrismaClient()
+export const prisma = new PrismaClient()
 
 // Important stuff for A4:
 // getUserByEmail shows one of many ways to interact with the db using prisma.

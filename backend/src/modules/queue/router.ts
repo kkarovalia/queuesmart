@@ -132,10 +132,10 @@ queueRouter.post('/:serviceId/join', requireAuth, async (req: AuthedRequest, res
                 status: 'waiting',
             },
         })
-        notifyQueueJoined(userId, service.name)
+        await notifyQueueJoined(userId, service.name)
 
         const promoted = await syncAlmostReady(service)
-        if (promoted) notifyAlmostReady(promoted.userId, service.name)
+        if (promoted) await notifyAlmostReady(promoted.userId, service.name)
 
         const currentQueue = await getCurrentQueue(service)
         const persistedEntry = currentQueue.find(item => item.id === entry.id) ?? entry
@@ -171,7 +171,7 @@ queueRouter.post('/:serviceId/leave', requireAuth, async (req: AuthedRequest, re
             data: { status: 'left', resolvedAt: new Date(), outcome: 'cancelled' },
         })
         const promoted = await syncAlmostReady(service)
-        if (promoted) notifyAlmostReady(promoted.userId, service.name)
+        if (promoted) await notifyAlmostReady(promoted.userId, service.name)
 
         res.json(toQueueEntryView(left, service))
     } catch (error) {
@@ -203,10 +203,10 @@ queueRouter.post('/:serviceId/serve-next', requireAuth, requireRole('admin'), as
                 waitMinutes: Math.max(0, Math.round((resolvedAt.getTime() - nextEntry.joinedAt.getTime()) / 60_000)),
             },
         })
-        notifyServed(served.userId, service.name)
+        await notifyServed(served.userId, service.name)
 
         const promoted = await syncAlmostReady(service)
-        if (promoted) notifyAlmostReady(promoted.userId, service.name)
+        if (promoted) await notifyAlmostReady(promoted.userId, service.name)
 
         res.json({
             served: toQueueEntryView(served, service),
