@@ -6,6 +6,7 @@ COPY prisma ./prisma
 RUN npm ci
 
 FROM base AS dev
+LABEL build.target="dev"
 COPY . .
 EXPOSE 3001 9229
 CMD ["npm", "run", "dev"]
@@ -18,6 +19,7 @@ RUN cp -r src/generated/prisma/*.so.node dist/generated/prisma/ 2>/dev/null || t
 RUN npm prune --omit=dev
 
 FROM node:26-alpine AS production
+LABEL build.target="production"
 WORKDIR /app
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/node_modules ./node_modules
