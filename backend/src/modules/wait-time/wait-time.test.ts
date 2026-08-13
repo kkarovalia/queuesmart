@@ -16,10 +16,10 @@ beforeAll(async () => {
     await prisma.user.deleteMany({ where: { email: { startsWith: 'wait-test-' } } })
     await prisma.service.deleteMany({ where: { name: 'Wait Test Dinner' } })
     user = await prisma.user.create({
-        data: { email: 'wait-test-user@example.com', passwordHash: 'not-used', role: 'user' },
+        data: { name: 'Wait Test User', email: 'wait-test-user@example.com', passwordHash: 'not-used', role: 'user' },
     })
     otherUser = await prisma.user.create({
-        data: { email: 'wait-test-other@example.com', passwordHash: 'not-used', role: 'user' },
+        data: { name: 'Wait Test Other User', email: 'wait-test-other@example.com', passwordHash: 'not-used', role: 'user' },
     })
     service = await prisma.service.create({
         data: {
@@ -52,8 +52,8 @@ describe('wait-time module', () => {
     it('returns the aggregate estimate from persisted active entries', async () => {
         await prisma.queueEntry.createMany({
             data: [
-                { serviceId: service.id, userId: user.id, partySize: 2, status: 'almost_ready' },
-                { serviceId: service.id, userId: otherUser.id, partySize: 2, status: 'waiting' },
+                { serviceId: service.id, userId: user.id, partySize: 2, status: 'almost_ready', position: 1 },
+                { serviceId: service.id, userId: otherUser.id, partySize: 2, status: 'waiting', position: 2 },
             ],
         })
 
@@ -64,10 +64,10 @@ describe('wait-time module', () => {
 
     it('returns the authenticated owner position using priority order', async () => {
         await prisma.queueEntry.create({
-            data: { serviceId: service.id, userId: otherUser.id, partySize: 2, priority: 'low', status: 'waiting' },
+            data: { serviceId: service.id, userId: otherUser.id, partySize: 2, priority: 'low', status: 'waiting', position: 1 },
         })
         const entry = await prisma.queueEntry.create({
-            data: { serviceId: service.id, userId: user.id, partySize: 2, priority: 'high', status: 'waiting' },
+            data: { serviceId: service.id, userId: user.id, partySize: 2, priority: 'high', status: 'waiting', position: 2 },
         })
 
         const res = await request(createApp())
@@ -80,7 +80,7 @@ describe('wait-time module', () => {
 
     it('does not reveal another user queue entry', async () => {
         const entry = await prisma.queueEntry.create({
-            data: { serviceId: service.id, userId: otherUser.id, partySize: 2, status: 'waiting' },
+            data: { serviceId: service.id, userId: otherUser.id, partySize: 2, status: 'waiting', position: 1 },
         })
 
         const res = await request(createApp())
@@ -92,7 +92,7 @@ describe('wait-time module', () => {
 
     it('returns 400 after the owner entry is resolved', async () => {
         const entry = await prisma.queueEntry.create({
-            data: { serviceId: service.id, userId: user.id, partySize: 2, status: 'served', resolvedAt: new Date() },
+            data: { serviceId: service.id, userId: user.id, partySize: 2, status: 'served', resolvedAt: new Date(), position: 1 },
         })
 
         const res = await request(createApp())

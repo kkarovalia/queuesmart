@@ -6,8 +6,8 @@ const prisma = new PrismaClient()
 // Same two demo accounts the old in-memory store.ts seeded, so login still
 // works out of the box against the real database.
 const DEMO_USERS = [
-    { email: 'jamie@example.com', password: 'demo-user', role: 'user' as const },
-    { email: 'admin@example.com', password: 'demo-admin', role: 'admin' as const },
+    { name: 'Jamie Lee', phone: '555-0100', email: 'jamie@example.com', password: 'demo-user', role: 'user' as const },
+    { name: 'Alex Admin', phone: '555-0101', email: 'admin@example.com', password: 'demo-admin', role: 'admin' as const },
 ]
 
 const DEMO_SERVICES = [
@@ -42,14 +42,23 @@ const DEMO_SERVICES = [
 ]
 
 async function main() {
-    for (const { email, password, role } of DEMO_USERS) {
+    for (const { name, phone, email, password, role } of DEMO_USERS) {
         const existing = await prisma.user.findUnique({ where: { email } })
         if (existing) {
-            console.log(`Skipping ${email}, already seeded.`)
+            // Backfill name/phone on accounts seeded before those fields
+            // existed (schema added them in the Final Project pass) — a
+            // plain skip would leave those documents missing a required
+            // field, which crashes any query that reads them back.
+            if (!existing.name) {
+                await prisma.user.update({ where: { email }, data: { name, phone } })
+                console.log(`Backfilled name/phone for ${email}.`)
+            } else {
+                console.log(`Skipping ${email}, already seeded.`)
+            }
             continue
         }
         const passwordHash = await argon2.hash(password)
-        await prisma.user.create({ data: { email, passwordHash, role } })
+        await prisma.user.create({ data: { name, phone, email, passwordHash, role } })
         console.log(`Seeded ${email} (${role})`)
     }
 

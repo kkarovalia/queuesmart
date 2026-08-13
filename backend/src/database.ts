@@ -3,6 +3,8 @@ import {
     User,
     UserRole,
     Service,
+    ServiceStatus,
+    PriorityLevel,
     QueueEntry,
     WaitlistOutcome as PrismaWaitlistOutcome,
     Notification,
@@ -55,6 +57,8 @@ export async function getUserById(id: string): Promise<User | undefined> {
 }
 
 export interface NewUserInput {
+    name: string
+    phone?: string
     email: string
     passwordHash: string
     role: UserRole
@@ -232,4 +236,147 @@ export async function getAllHistory() {
         ...toHistoryRecord(entry),
         customerEmail: entry.user.email,
     }))
+}
+
+// --- Reporting (Final Project) ---
+// Reports are computed on demand from QueueEntry (which already doubles as
+// the history table, per the A4 schema decision — see the note above) rather
+// than stored anywhere, since the assignment only asks that they can be
+// generated, not that they persist.
+
+export interface ReportDateRange {
+    from?: Date
+    to?: Date
+}
+
+function resolvedAtFilter(range: ReportDateRange) {
+    return {
+        not: null,
+        ...(range.from ? { gte: range.from } : {}),
+        ...(range.to ? { lte: range.to } : {}),
+    }
+}
+
+export interface UserParticipationRow {
+    userId: string
+    userName: string
+    userEmail: string
+    serviceId: string
+    serviceName: string
+    partySize: number
+    joinedAt: string
+    resolvedAt: string
+    outcome: WaitlistOutcome
+    waitMinutes: number
+}
+
+export async function getUserParticipationReport(
+    range: ReportDateRange = {},
+    serviceId?: string,
+): Promise<UserParticipationRow[]> {
+    const entries = await prisma.queueEntry.findMany({
+        where: {
+            resolvedAt: resolvedAtFilter(range),
+            ...(serviceId ? { serviceId } : {}),
+        },
+        include: { service: true, user: true },
+        orderBy: { resolvedAt: 'desc' },
+    })
+
+    return entries.map(entry => ({
+        userId: entry.userId,
+        userName: entry.user.name,
+        userEmail: entry.user.email,
+        serviceId: entry.serviceId,
+        serviceName: entry.service.name,
+        partySize: entry.partySize,
+        joinedAt: entry.joinedAt.toISOString(),
+        resolvedAt: entry.resolvedAt!.toISOString(),
+        outcome: fromPrismaOutcome(entry.outcome!),
+        waitMinutes: entry.waitMinutes ?? 0,
+    }))
+}
+
+export interface ServiceActivityRow {
+    serviceId: string
+    serviceName: string
+    status: ServiceStatus
+    priority: PriorityLevel
+    totalEntries: number
+    seatedCount: number
+    cancelledCount: number
+    noShowCount: number
+    averageWaitMinutes: number
+}
+
+export async function getServiceActivityReport(
+    range: ReportDateRange = {},
+    serviceId?: string,
+): Promise<ServiceActivityRow[]> {
+    const services = await prisma.service.findMany({
+        where: serviceId ? { id: serviceId } : undefined,
+        orderBy: { name: 'asc' },
+    })
+    const entries = await prisma.queueEntry.findMany({
+        where: { resolvedAt: resolvedAtFilter(range) },
+    })
+
+    return services.map(service => {
+        const serviceEntries = entries.filter(entry => entry.serviceId === service.id)
+        const seatedCount = serviceEntries.filter(entry => entry.outcome === 'seated').length
+        const cancelledCount = serviceEntries.filter(entry => entry.outcome === 'cancelled').length
+        const noShowCount = serviceEntries.filter(entry => entry.outcome === 'no_show').length
+        const averageWaitMinutes = serviceEntries.length
+            ? Math.round(
+                  serviceEntries.reduce((sum, entry) => sum + (entry.waitMinutes ?? 0), 0) / serviceEntries.length,
+              )
+            : 0
+
+        return {
+            serviceId: service.id,
+            serviceName: service.name,
+            status: service.status,
+            priority: service.priority,
+            totalEntries: serviceEntries.length,
+            seatedCount,
+            cancelledCount,
+            noShowCount,
+            averageWaitMinutes,
+        }
+    })
+}
+
+export interface UsageSummaryReport {
+    totalServed: number
+    totalCancelled: number
+    totalNoShow: number
+    averageWaitMinutes: number
+    busiestService: { serviceName: string; totalEntries: number } | null
+    rangeFrom: string | null
+    rangeTo: string | null
+}
+
+export async function getUsageSummaryReport(range: ReportDateRange = {}): Promise<UsageSummaryReport> {
+    const activity = await getServiceActivityReport(range)
+    const totalEntries = activity.reduce((sum, service) => sum + service.totalEntries, 0)
+    const weightedWaitSum = activity.reduce(
+        (sum, service) => sum + service.averageWaitMinutes * service.totalEntries,
+        0,
+    )
+    const busiest = activity.reduce<ServiceActivityRow | null>(
+        (max, service) => (!max || service.totalEntries > max.totalEntries ? service : max),
+        null,
+    )
+
+    return {
+        totalServed: activity.reduce((sum, service) => sum + service.seatedCount, 0),
+        totalCancelled: activity.reduce((sum, service) => sum + service.cancelledCount, 0),
+        totalNoShow: activity.reduce((sum, service) => sum + service.noShowCount, 0),
+        averageWaitMinutes: totalEntries ? Math.round(weightedWaitSum / totalEntries) : 0,
+        busiestService: busiest && busiest.totalEntries > 0
+            ? { serviceName: busiest.serviceName, totalEntries: busiest.totalEntries }
+            : null,
+        rangeFrom: range.from?.toISOString() ?? null,
+        rangeTo: range.to?.toISOString() ?? null,
+    }
 }
