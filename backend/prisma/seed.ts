@@ -6,8 +6,8 @@ const prisma = new PrismaClient()
 // Same two demo accounts the old in-memory store.ts seeded, so login still
 // works out of the box against the real database.
 const DEMO_USERS = [
-    { email: 'jamie@example.com', password: 'demo-user', role: 'user' as const },
-    { email: 'admin@example.com', password: 'demo-admin', role: 'admin' as const },
+    { name: 'Jamie', email: 'jamie@example.com', password: 'demo-user', role: 'user' as const },
+    { name: 'Admin', email: 'admin@example.com', password: 'demo-admin', role: 'admin' as const },
 ]
 
 const DEMO_SERVICES = [
@@ -42,14 +42,14 @@ const DEMO_SERVICES = [
 ]
 
 async function main() {
-    for (const { email, password, role } of DEMO_USERS) {
+    for (const { name, email, password, role } of DEMO_USERS) {
         const existing = await prisma.user.findUnique({ where: { email } })
         if (existing) {
             console.log(`Skipping ${email}, already seeded.`)
             continue
         }
         const passwordHash = await argon2.hash(password)
-        await prisma.user.create({ data: { email, passwordHash, role } })
+        await prisma.user.create({ data: { name, email, passwordHash, role } })
         console.log(`Seeded ${email} (${role})`)
     }
 

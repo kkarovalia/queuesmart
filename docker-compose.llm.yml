@@ -1,0 +1,43 @@
+services:
+  llm:
+    image: ghcr.io/ggml-org/llama.cpp:server-cuda
+    container_name: queuesmart-llm
+    restart: unless-stopped
+    command: >
+      -hf unsloth/Qwen3.5-4B-GGUF:Q4_K_M
+      --host 0.0.0.0
+      --port 8080
+      --jinja
+      -ngl 99
+      -fa on
+      -c 40960
+      --temp 0.6
+      --top-k 20
+      --top-p 0.95
+      --min-p 0
+    volumes:
+      - ./llm/models:/root/.cache/llama.cpp
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 60
+      start_period: 5s
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    networks:
+      - queuesmart-net
+
+  backend:
+    environment:
+      LLM_BASE_URL: http://llm:8080/v1
+      LLM_API_KEY: unused
+      LLM_MODEL_NAME: local-model
+    depends_on:
+      llm:
+        condition: service_healthy

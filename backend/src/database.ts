@@ -214,12 +214,17 @@ function toHistoryRecord(
 }
 
 export async function getHistoryByUserId(userId: string) {
-    const entries = await prisma.queueEntry.findMany({
-        where: { userId, resolvedAt: { not: null } },
-        include: { service: true },
-        orderBy: { resolvedAt: 'desc' },
-    })
-    return entries.map(toHistoryRecord)
+    try {
+        const entries = await prisma.queueEntry.findMany({
+            where: { userId, resolvedAt: { not: null } },
+            include: { service: true },
+            orderBy: { resolvedAt: 'desc' },
+        })
+        return entries.map(toHistoryRecord)
+    } catch (error) {
+        console.log(error)
+        return []
+    }
 }
 
 export async function getAllHistory() {

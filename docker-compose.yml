@@ -28,6 +28,9 @@ services:
       DATABASE_URL: mongodb://${MONGO_ROOT_USER}:${MONGO_ROOT_PASS}@mongodb:27017/queuesmart?authSource=admin&directConnection=true
       JWT_SECRET: ${JWT_SECRET}
       NODE_ENV: production
+      LLM_BASE_URL: ${LLM_BASE_URL}
+      LLM_API_KEY: ${LLM_API_KEY}
+      LLM_MODEL_NAME: ${LLM_MODEL_NAME}
     ports:
       - "3001:3001"
     depends_on:
