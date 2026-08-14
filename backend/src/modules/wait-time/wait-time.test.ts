@@ -16,10 +16,10 @@ beforeAll(async () => {
     await prisma.user.deleteMany({ where: { email: { startsWith: 'wait-test-' } } })
     await prisma.service.deleteMany({ where: { name: 'Wait Test Dinner' } })
     user = await prisma.user.create({
-        data: { name: "Wait test", email: 'wait-test-user@example.com', passwordHash: 'not-used', role: 'user' },
+        data: { name: 'Wait Test User', email: 'wait-test-user@example.com', passwordHash: 'not-used', role: 'user' },
     })
     otherUser = await prisma.user.create({
-        data: { name: "Wait Test Other", email: 'wait-test-other@example.com', passwordHash: 'not-used', role: 'user' },
+        data: { name: 'Wait Test Other User', email: 'wait-test-other@example.com', passwordHash: 'not-used', role: 'user' },
     })
     service = await prisma.service.create({
         data: {

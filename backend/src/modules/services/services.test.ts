@@ -17,12 +17,12 @@ beforeAll(async () => {
     await prisma.user.upsert({
         where: { email: 'jamie@example.com' },
         update: { passwordHash: userPasswordHash, role: 'user' },
-        create: { name: "Jamie", email: 'jamie@example.com', passwordHash: userPasswordHash, role: 'user' },
+        create: { name: 'Jamie Lee', email: 'jamie@example.com', passwordHash: userPasswordHash, role: 'user' },
     })
     await prisma.user.upsert({
         where: { email: 'admin@example.com' },
         update: { passwordHash: adminPasswordHash, role: 'admin' },
-        create: { name: "Admin", email: 'admin@example.com', passwordHash: adminPasswordHash, role: 'admin' },
+        create: { name: 'Alex Admin', email: 'admin@example.com', passwordHash: adminPasswordHash, role: 'admin' },
     })
 })
 

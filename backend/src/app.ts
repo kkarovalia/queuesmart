@@ -8,6 +8,7 @@ import { notificationsRouter } from './modules/notifications/router.js'
 import { waitTimeRouter } from './modules/wait-time/router.js'
 import { historyRouter } from './modules/history/router.js'
 import { chatRouter } from './modules/chat/router.js'
+import { reportsRouter } from './modules/reports/router.js'
 
 export function createApp() {
     const app = express()
@@ -26,6 +27,7 @@ export function createApp() {
     app.use('/api/wait-time', waitTimeRouter)
     app.use('/api/history', historyRouter)
     app.use('/api/chat', chatRouter)
+    app.use('/api/reports', reportsRouter)
 
     return app
 }

@@ -44,12 +44,12 @@ async function createEntry(overrides: Partial<QueueEntry> = {}): Promise<QueueEn
             serviceId: overrides.serviceId ?? openService.id,
             userId: overrides.userId ?? user.id,
             partySize: overrides.partySize ?? 2,
+            position: overrides.position ?? 0,
             priority: overrides.priority,
             status: overrides.status ?? 'waiting',
             joinedAt: overrides.joinedAt,
             resolvedAt: overrides.resolvedAt,
             outcome: overrides.outcome,
-            position: Date.now(),
             waitMinutes: overrides.waitMinutes,
         },
     })
@@ -62,13 +62,13 @@ beforeAll(async () => {
     await prisma.service.deleteMany({ where: { name: { startsWith: 'Queue Test ' } } })
 
     user = await prisma.user.create({
-        data: { name: "Queue Test", email: 'queue-test-user@example.com', passwordHash: 'not-used', role: 'user' },
+        data: { name: 'Queue Test User', email: 'queue-test-user@example.com', passwordHash: 'not-used', role: 'user' },
     })
     secondUser = await prisma.user.create({
-        data: { name: "Queue Test2", email: 'queue-test-second@example.com', passwordHash: 'not-used', role: 'user' },
+        data: { name: 'Queue Test Second User', email: 'queue-test-second@example.com', passwordHash: 'not-used', role: 'user' },
     })
     admin = await prisma.user.create({
-        data: { name: "Queue TestAdm", email: 'queue-test-admin@example.com', passwordHash: 'not-used', role: 'admin' },
+        data: { name: 'Queue Test Admin', email: 'queue-test-admin@example.com', passwordHash: 'not-used', role: 'admin' },
     })
     openService = await prisma.service.create({
         data: {

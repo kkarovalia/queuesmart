@@ -21,12 +21,12 @@ beforeAll(async () => {
     await prisma.user.upsert({
         where: { email: 'jamie@example.com' },
         update: { passwordHash: userPasswordHash, role: 'user' },
-        create: { name: "Jamie", email: 'jamie@example.com', passwordHash: userPasswordHash, role: 'user' },
+        create: { name: 'Jamie Lee', email: 'jamie@example.com', passwordHash: userPasswordHash, role: 'user' },
     })
     await prisma.user.upsert({
         where: { email: 'admin@example.com' },
         update: { passwordHash: adminPasswordHash, role: 'admin' },
-        create: { name: "Admin", email: 'admin@example.com', passwordHash: adminPasswordHash, role: 'admin' },
+        create: { name: 'Alex Admin', email: 'admin@example.com', passwordHash: adminPasswordHash, role: 'admin' },
     })
 })
 
@@ -40,7 +40,7 @@ describe('auth module', () => {
             const app = createApp()
             const res = await request(app)
                 .post('/api/auth/register')
-                .send({ email: 'newuser@example.com', password: 'password123' })
+                .send({ name: 'New User', email: 'newuser@example.com', password: 'password123' })
 
             expect(res.status).toBe(201)
             expect(res.body.token).toBeTypeOf('string')
@@ -82,7 +82,7 @@ describe('auth module', () => {
             const app = createApp()
             const res = await request(app)
                 .post('/api/auth/register')
-                .send({ email: 'jamie@example.com', password: 'password123' })
+                .send({ name: 'Jamie Lee', email: 'jamie@example.com', password: 'password123' })
 
             expect(res.status).toBe(409)
         })

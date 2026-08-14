@@ -21,6 +21,10 @@ import type {
     WaitlistOutcome,
     AdminHistoryRecord,
     PriorityLevel,
+    ReportFilters,
+    UserParticipationRow,
+    ServiceActivityRow,
+    UsageSummaryReport,
 } from './contracts/types';
 
 import type { QueueNotification } from './types/queue';
@@ -859,4 +863,94 @@ export function useSendChatMessage() {
             ]);
         },
     });
+}
+
+// --- Reporting (backend/src/modules/reports, real endpoint, frizzle) ---
+// Three separate reports, matching the assignment's three required report
+// contents. Admin-only, 401/403 handled the same way authHeaders() and
+// parseApiError already handle every other admin endpoint. from/to/serviceId
+// are all optional on the backend; 'all' here just means "don't send the
+// serviceId param at all."
+
+function reportQueryString(filters: ReportFilters, extra?: Record<string, string>): string {
+    const params = new URLSearchParams();
+    if (filters.from) params.set('from', filters.from);
+    if (filters.to) params.set('to', filters.to);
+    if (filters.serviceId !== 'all') params.set('serviceId', filters.serviceId);
+    if (extra) for (const [key, value] of Object.entries(extra)) params.set(key, value);
+    return params.toString();
+}
+
+async function fetchUserParticipationReport(filters: ReportFilters): Promise<UserParticipationRow[]> {
+    const response = await fetch(`${API_BASE_URL}/api/reports/users?${reportQueryString(filters)}`, {
+        headers: authHeaders(),
+    });
+    if (!response.ok) await parseApiError(response);
+    return response.json();
+}
+
+async function fetchServiceActivityReport(filters: ReportFilters): Promise<ServiceActivityRow[]> {
+    const response = await fetch(`${API_BASE_URL}/api/reports/services?${reportQueryString(filters)}`, {
+        headers: authHeaders(),
+    });
+    if (!response.ok) await parseApiError(response);
+    return response.json();
+}
+
+async function fetchUsageSummaryReport(filters: ReportFilters): Promise<UsageSummaryReport> {
+    const response = await fetch(`${API_BASE_URL}/api/reports/summary?${reportQueryString(filters)}`, {
+        headers: authHeaders(),
+    });
+    if (!response.ok) await parseApiError(response);
+    return response.json();
+}
+
+export interface FullReport {
+    participation: UserParticipationRow[];
+    services: ServiceActivityRow[];
+    summary: UsageSummaryReport;
+}
+
+async function generateFullReport(filters: ReportFilters): Promise<FullReport> {
+    const [participation, services, summary] = await Promise.all([
+        fetchUserParticipationReport(filters),
+        fetchServiceActivityReport(filters),
+        fetchUsageSummaryReport(filters),
+    ]);
+    return { participation, services, summary };
+}
+
+export type GenerateReportMutation = UseMutationResult<NoInfer<FullReport>, Error, ReportFilters>;
+
+export function useGenerateReport(): GenerateReportMutation {
+    return useMutation({
+        mutationFn: generateFullReport,
+    })
+}
+
+// CSV download hits the same endpoints with format=csv, which makes the
+// backend return a real file (Content-Disposition: attachment) instead of
+// JSON, per reports/router.ts. No client-side CSV building needed, unlike
+// the earlier mock version of this feature.
+export type ReportKind = 'users' | 'services' | 'summary';
+
+const REPORT_FILENAMES: Record<ReportKind, string> = {
+    users: 'user-participation-report',
+    services: 'service-activity-report',
+    summary: 'usage-summary-report',
+};
+
+export async function downloadReportCsv(kind: ReportKind, filters: ReportFilters): Promise<void> {
+    const query = reportQueryString(filters, { format: 'csv' });
+    const response = await fetch(`${API_BASE_URL}/api/reports/${kind}?${query}`, {
+        headers: authHeaders(),
+    });
+    if (!response.ok) await parseApiError(response);
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${REPORT_FILENAMES[kind]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
 }
