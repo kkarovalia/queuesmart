@@ -1,18 +1,31 @@
-import { mockServices, mockQueueEntries } from '../../data/mockData'
+import { useServices } from '../../api'
 import { useQueueFlow } from '../queue-flow/useQueueFlow'
 import { JoinQueueScreen } from './JoinQueueScreen'
 
 export function JoinQueuePage() {
+    const services = useServices()
     const { activeQueue, joinQueue, leaveQueue } = useQueueFlow()
 
-    const queueLengths = mockQueueEntries.reduce<Record<string, number>>((lengths, entry) => {
-        lengths[entry.serviceId] = (lengths[entry.serviceId] ?? 0) + 1
+    if (services.isLoading) {
+        return  (
+            "Loading services..."
+        )
+    }
+
+    if (services.isError || services.data == null) {
+        return (
+            "Error loading services."
+        )
+    }
+
+    const queueLengths = services.data.reduce<Record<string, number>>((lengths, entry) => {
+        lengths[entry.id] = Math.max(0, (entry.queueLength ?? 0) + (entry.userInQueue ? -1 : 0))
         return lengths
     }, {})
 
     return (
         <JoinQueueScreen
-            services={mockServices}
+            services={services.data}
             queueLengths={queueLengths}
             activeQueue={activeQueue}
             onJoinQueue={joinQueue}

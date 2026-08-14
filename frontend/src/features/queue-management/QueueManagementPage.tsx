@@ -1,12 +1,12 @@
 import { Link } from '@tanstack/react-router'
 import { BellRing, ListTree, UserX } from 'lucide-react'
-import { useMarkNoShow, useQueueForService, useServeNextInQueue, useService } from '../../api'
+import { useMarkNoShow, useQueue, useServeNextInQueue, useService } from '../../api'
 import { QueueListItem } from './QueueListItem'
 import './queue-management.css'
 
 export function QueueManagementPage({ serviceId }: { serviceId: string }) {
     const service = useService(serviceId)
-    const queueEntries = useQueueForService(serviceId)
+    const queueEntries = useQueue(serviceId)
     const serveNext = useServeNextInQueue(serviceId)
     const markNoShow = useMarkNoShow(serviceId)
     const entries = queueEntries.data ?? []

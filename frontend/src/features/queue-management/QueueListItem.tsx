@@ -1,9 +1,9 @@
-import type { QueueEntryView } from '../../api'
+import type { QueueEntry } from '../../api'
 import { StatusBadge } from '../../ui/StatusBadge'
 
-type Props = { position: number; queueEntry: QueueEntryView }
+type Props = { position: number; queueEntry: QueueEntry }
 
-const STATUS_LABEL: Record<QueueEntryView['status'], string> = {
+const STATUS_LABEL: Record<QueueEntry['status'], string> = {
     waiting: 'Waiting',
     'almost-ready': 'Almost ready',
     served: 'Served',

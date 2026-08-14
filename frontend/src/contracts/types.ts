@@ -11,6 +11,8 @@ export interface Service {
     // Placeholder display text until a real wait-time-estimate service exists (A1 architecture calls this out as future work).
     estimatedWait: string
     tablePreferenceLabel: string
+    queueLength?: number
+    userInQueue?: boolean
 }
 
 export interface ServiceFormInput {

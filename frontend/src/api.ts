@@ -181,6 +181,8 @@ interface BackendService {
     expectedDurationMinutes: number;
     priority: PriorityLevel;
     status: 'open' | 'closed';
+    userInQueue: boolean
+    queueLength?: number
 }
  
 function toFrontendService(service: BackendService): Service {
@@ -192,7 +194,9 @@ function toFrontendService(service: BackendService): Service {
 }
  
 async function fetchServices(): Promise<Service[]> {
-    const response = await fetch(`${API_BASE_URL}/api/services`);
+    const response = await fetch(`${API_BASE_URL}/api/services`, {
+        headers: authHeaders()
+    });
     if (!response.ok) await parseApiError(response);
     const services: BackendService[] = await response.json();
     return services.map(toFrontendService);
@@ -540,7 +544,7 @@ export function useCancelReservation(): CancelReservationMutation {
 // Wire format: entries carry a resolved `priority` and, on the list endpoint
 // only, a 1-based `position` — both computed server-side so the UI never has
 // to re-derive the ordering rules (priority, then arrival time).
-export interface QueueEntryView {
+export interface QueueEntry {
     id: string;
     serviceId: string;
     userId: string;
@@ -552,18 +556,18 @@ export interface QueueEntryView {
     position?: number;
 }
 
-async function fetchQueueForService(serviceId: string): Promise<QueueEntryView[]> {
+async function fetchQueue(serviceId: string): Promise<QueueEntry[]> {
     const response = await fetch(`${API_BASE_URL}/api/queue/${serviceId}`, { headers: authHeaders() });
     if (!response.ok) await parseApiError(response);
     return response.json();
 }
 
-export type QueueForServiceQuery = UseQueryResult<NoInfer<QueueEntryView[]>, Error>;
+export type QueueQuery = UseQueryResult<NoInfer<QueueEntry[]>, Error>;
 
-export function useQueueForService(serviceId: string): QueueForServiceQuery {
+export function useQueue(serviceId: string): QueueQuery {
     return useQuery({
         queryKey: ['queueForService', serviceId],
-        queryFn: () => fetchQueueForService(serviceId),
+        queryFn: () => fetchQueue(serviceId),
         staleTime: 15 * 1000,
     })
 }
@@ -573,7 +577,7 @@ interface JoinQueueArgs {
     partySize: number;
 }
 
-export async function joinQueue({ serviceId, partySize }: JoinQueueArgs): Promise<QueueEntryView> {
+export async function joinQueue({ serviceId, partySize }: JoinQueueArgs): Promise<QueueEntry> {
     const response = await fetch(`${API_BASE_URL}/api/queue/${serviceId}/join`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
@@ -596,8 +600,8 @@ export async function leaveQueue({ serviceId }: LeaveQueueArgs): Promise<void> {
 }
 
 interface ServeNextResult {
-    served: QueueEntryView;
-    nowAlmostReady: QueueEntryView | null;
+    served: QueueEntry;
+    nowAlmostReady: QueueEntry | null;
 }
 
 async function serveNextInQueue(serviceId: string): Promise<ServeNextResult> {
@@ -622,8 +626,8 @@ export function useServeNextInQueue(serviceId: string): ServeNextMutation {
 }
 
 interface NoShowResult {
-    noShow: QueueEntryView;
-    nowAlmostReady: QueueEntryView | null;
+    noShow: QueueEntry;
+    nowAlmostReady: QueueEntry | null;
 }
 
 async function markNoShowInQueue(serviceId: string): Promise<NoShowResult> {

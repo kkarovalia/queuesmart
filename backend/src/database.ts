@@ -10,38 +10,13 @@ import {
     Notification,
     NotificationKind as PrismaNotificationKind,
 } from "./generated/prisma/client.js";
+import { getCurrentQueue } from "./modules/queue/router.js";
 import type { ServiceInput, NotificationKind, WaitlistOutcome, HistoryRecord } from './types.js'
 
 export const prisma = new PrismaClient()
 
-// Important stuff for A4:
-// getUserByEmail shows one of many ways to interact with the db using prisma.
-// You can run the full application stack using docker compose.
-//
-// Running dev environment with live editing
-// docker compose -f docker-compose.yml -f docker-compose.dev.yml up
-//
-// Build and run production images
-// docker compose up --build
-//
-// If switching between prod and dev:
-// Run docker compose -f docker-compose.yml -f docker-compose.dev.yml build --no-cache
-// OR
-// docker compose build --no-cache
-//
-// HistoryRecord has been merged with QueueEntry via optional fields outcome and waitMinutes.
-// resolvedAt and servedAt are now one optional resolvedAt field.
-// 
-// QueueEntry is unconstrained and needs backend logic to prevent duplicates.
-//
-// There are only 4 models in the database so this file won't need much work.
-// Check modules to see if the prisma types are compatible. 
-//
-// PS - Frontend needs fixing. It's still set up like a demo for A2.
-
 export async function getUserByEmail(email: string): Promise<User | undefined> {
-    // Working prisma example
-    return await prisma.user.findUnique({ where: { email: email } }) ?? undefined // Prisma returns null so must convert
+    return await prisma.user.findUnique({ where: { email: email } }) ?? undefined
 }
 
 export async function getUserById(id: string): Promise<User | undefined> {
@@ -85,8 +60,38 @@ export async function createUser(input: NewUserInput): Promise<User> {
     }
 }
 
-export async function getServices(): Promise<Service[]> {
-    return prisma.service.findMany({ orderBy: { name: 'asc' } })
+interface ServiceExtraInfo extends Service {
+    queueLength?: number
+    userInQueue?: boolean
+}
+
+interface GetServicesOptions {
+    user?: User
+    includeQueueLengths?: boolean
+}
+
+export async function getServices(options?: GetServicesOptions): Promise<(Service | ServiceExtraInfo)[]> {
+    const services = await prisma.service.findMany({ orderBy: { name: 'asc' } })
+    if (options) {
+        return await Promise.all(services.map(async (s) => {
+            const queue = await getCurrentQueue(s)
+            return {
+                ...s,
+                queueLength: options.includeQueueLengths ? queue.length : undefined,
+                userInQueue: options.user ? (
+                    await prisma.queueEntry.count({
+                        where: {
+                            userId: options.user.id,
+                            serviceId: s.id,
+                            resolvedAt: { isSet: false }
+                        }
+                    })
+                ) > 0 : undefined
+            }
+        }))
+    } else {
+        return services
+    }
 }
 
 export async function getServiceById(id: string): Promise<Service | undefined> {
@@ -335,8 +340,8 @@ export async function getServiceActivityReport(
         const noShowCount = serviceEntries.filter(entry => entry.outcome === 'no_show').length
         const averageWaitMinutes = serviceEntries.length
             ? Math.round(
-                  serviceEntries.reduce((sum, entry) => sum + (entry.waitMinutes ?? 0), 0) / serviceEntries.length,
-              )
+                serviceEntries.reduce((sum, entry) => sum + (entry.waitMinutes ?? 0), 0) / serviceEntries.length,
+            )
             : 0
 
         return {

@@ -1,6 +1,6 @@
 import { Router } from 'express'
-import { requireAuth, requireRole } from '../../middleware/auth.js'
-import { createService, getServices, toggleServiceStatus, updateService } from '../../database.js'
+import { AuthedRequest, requireAuth, requireRole } from '../../middleware/auth.js'
+import { createService, getServices, getUserById, toggleServiceStatus, updateService } from '../../database.js'
 import type { PriorityLevel, ServiceInput } from '../../types.js'
 
 export const servicesRouter = Router()
@@ -45,8 +45,13 @@ function validateServiceInput(body: unknown): ValidationResult {
     }
 }
 
-servicesRouter.get('/', async (_req, res) => {
-    res.json(await getServices())
+servicesRouter.get('/', requireAuth, async (req: AuthedRequest, res) => {
+    const user = req.user ? await getUserById(req.user.sub) : undefined
+    if (!user) {
+        res.status(404).json({ error: 'User not found' })
+        return
+    }
+    res.json(await getServices({user, includeQueueLengths: true}))
 })
 
 servicesRouter.post('/', requireAuth, requireRole('admin'), async (req, res) => {
