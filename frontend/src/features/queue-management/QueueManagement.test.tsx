@@ -71,4 +71,57 @@ describe('admin queue management', () => {
         await user.click(screen.getByRole('button', { name: /serve next/i }))
         await waitFor(() => expect(screen.queryAllByRole('listitem')).toHaveLength(0))
     })
+
+    it('marks the next guest as a no-show with admin auth', async () => {
+        let resolved = false
+        const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+            const url = String(input)
+            if (url.endsWith('/api/services')) return new Response(JSON.stringify([service]), { status: 200 })
+            if (url.endsWith(`/api/queue/${service.id}/no-show`)) {
+                expect(init?.headers).toMatchObject({ Authorization: 'Bearer admin-token' })
+                resolved = true
+                return new Response(JSON.stringify({ noShow: { id: 'entry-1' }, nowAlmostReady: null }), { status: 200 })
+            }
+            if (url.endsWith(`/api/queue/${service.id}`)) {
+                expect(init?.headers).toMatchObject({ Authorization: 'Bearer admin-token' })
+                return new Response(JSON.stringify(resolved ? [] : [{
+                    id: 'entry-1',
+                    serviceId: service.id,
+                    userId: 'mongo-user-id',
+                    partySize: 3,
+                    priority: 'high',
+                    status: 'almost-ready',
+                    joinedAt: '2026-08-07T18:00:00Z',
+                    servedAt: null,
+                    position: 1,
+                }]), { status: 200 })
+            }
+            throw new Error(`Unexpected request: ${url}`)
+        })
+        vi.stubGlobal('fetch', fetchMock)
+
+        const user = userEvent.setup()
+        // A minimal ad-hoc router, not the real file-based routeTree: this
+        // component only needs *a* router context for its "Switch queue"
+        // <Link> to work (useRouter() throws without one), not the real
+        // app's route tree. Going through the real one means TanStack
+        // Router's auto-code-splitting lazy-loads this route, which doesn't
+        // play well with Vitest's transform pipeline for a dynamic segment.
+        const rootRoute = createRootRoute()
+        const testRoute = createRoute({
+            getParentRoute: () => rootRoute,
+            path: '/',
+            component: () => <QueueManagementPage serviceId={service.id} />,
+        })
+        const router = createRouter({ routeTree: rootRoute.addChildren([testRoute]) })
+        render(
+            <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+                <RouterProvider router={router} />
+            </QueryClientProvider>,
+        )
+
+        expect(await screen.findAllByRole('listitem')).toHaveLength(1)
+        await user.click(screen.getByRole('button', { name: /mark no-show/i }))
+        await waitFor(() => expect(screen.queryAllByRole('listitem')).toHaveLength(0))
+    })
 })

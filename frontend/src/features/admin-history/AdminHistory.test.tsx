@@ -10,14 +10,19 @@ const mockAllHistoryResponse = [
 
 describe('admin history', () => {
     beforeEach(() => {
-        vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(mockAllHistoryResponse), { status: 200 })))
+        window.localStorage.setItem('queuesmart_token', 'admin-token')
+        vi.stubGlobal('fetch', vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+            expect(init?.headers).toMatchObject({ Authorization: 'Bearer admin-token' })
+            return new Response(JSON.stringify(mockAllHistoryResponse), { status: 200 })
+        }))
     })
 
     afterEach(() => {
         vi.unstubAllGlobals()
+        window.localStorage.clear()
     })
 
-    it('renders every customer\'s history rows', async () => {
+    it('sends admin auth and renders every customer\'s history rows', async () => {
         render(<QueryClientProvider client={new QueryClient()}><AdminHistoryPage /></QueryClientProvider>)
 
         expect(await screen.findByText('Dinner Waitlist', {}, { timeout: 3000 })).toBeInTheDocument()

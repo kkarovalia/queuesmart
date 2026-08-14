@@ -217,3 +217,38 @@ queueRouter.post('/:serviceId/serve-next', requireAuth, requireRole('admin'), as
         next(error)
     }
 })
+
+// Distinct from /leave (which the guest themselves calls): this is an admin
+// call for a party that never showed up, so the outcome recorded is
+// 'no_show' rather than 'cancelled' — no waitMinutes either, same as leave,
+// since neither outcome represents an actual seated wait.
+queueRouter.post('/:serviceId/no-show', requireAuth, requireRole('admin'), async (req, res, next) => {
+    try {
+        const service = await getServiceById(req.params.serviceId)
+        if (!service) {
+            res.status(404).json({ error: 'Service not found' })
+            return
+        }
+
+        const [nextEntry] = await getCurrentQueue(service)
+        if (!nextEntry) {
+            res.status(404).json({ error: 'No one is waiting for this service' })
+            return
+        }
+
+        const noShow = await prisma.queueEntry.update({
+            where: { id: nextEntry.id },
+            data: { status: 'left', resolvedAt: new Date(), outcome: 'no_show' },
+        })
+
+        const promoted = await syncAlmostReady(service)
+        if (promoted) await notifyAlmostReady(promoted.userId, service.name)
+
+        res.json({
+            noShow: toQueueEntryView(noShow, service),
+            nowAlmostReady: promoted ? toQueueEntryView(promoted, service) : null,
+        })
+    } catch (error) {
+        next(error)
+    }
+})

@@ -146,12 +146,14 @@ describe('queue authorization', () => {
         expect((await request(app).post(`/api/queue/${openService.id}/leave`)).status).toBe(401)
     })
 
-    it('restricts queue listing and serving to administrators', async () => {
+    it('restricts queue listing, serving, and no-show marking to administrators', async () => {
         const list = await request(app).get(`/api/queue/${openService.id}`).set('Authorization', userAuth)
         const serve = await request(app).post(`/api/queue/${openService.id}/serve-next`).set('Authorization', userAuth)
+        const noShow = await request(app).post(`/api/queue/${openService.id}/no-show`).set('Authorization', userAuth)
 
         expect(list.status).toBe(403)
         expect(serve.status).toBe(403)
+        expect(noShow.status).toBe(403)
     })
 
     it('rejects a token for a user that no longer exists', async () => {
@@ -342,5 +344,32 @@ describe('leaving and serving persisted entries', () => {
 
         expect(empty.status).toBe(404)
         expect(missing.status).toBe(404)
+    })
+
+    it('marks the first party as a no-show, records history fields, and promotes the next', async () => {
+        const first = await createEntry({ joinedAt: new Date(Date.now() - 5 * 60_000) })
+        const second = await createEntry({ userId: secondUser.id, joinedAt: new Date() })
+        await syncAlmostReady(openService)
+
+        const res = await request(app)
+            .post(`/api/queue/${openService.id}/no-show`)
+            .set('Authorization', adminAuth)
+
+        const noShow = await prisma.queueEntry.findUnique({ where: { id: first.id } })
+        const promoted = await prisma.queueEntry.findUnique({ where: { id: second.id } })
+        expect(res.status).toBe(200)
+        expect(res.body.noShow).toMatchObject({ id: first.id, status: 'left' })
+        expect(res.body.nowAlmostReady).toMatchObject({ id: second.id, status: 'almost-ready' })
+        expect(noShow).toMatchObject({ status: 'left', outcome: 'no_show', waitMinutes: null })
+        expect(noShow?.resolvedAt).toBeInstanceOf(Date)
+        expect(promoted?.status).toBe('almost_ready')
+    })
+
+    it('returns 404 marking a no-show when the queue is empty', async () => {
+        const res = await request(app)
+            .post(`/api/queue/${openService.id}/no-show`)
+            .set('Authorization', adminAuth)
+
+        expect(res.status).toBe(404)
     })
 })
