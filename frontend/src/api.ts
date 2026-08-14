@@ -769,3 +769,94 @@ export function useMarkNotificationRead(): MarkNotificationReadMutation {
         },
     })
 }
+
+// --- Queue Assistant (backend/src/modules/chat/router.ts) ---
+
+export type ChatRole = 'user' | 'assistant';
+
+export interface ChatMessage {
+    role: ChatRole;
+    content: string;
+}
+
+interface BackendChatMessage {
+    role?: unknown;
+    content?: unknown;
+}
+
+const CHAT_QUERY_KEY = ['chat'] as const;
+
+function normalizeChatMessages(payload: unknown): ChatMessage[] {
+    if (!Array.isArray(payload)) return [];
+
+    return payload.flatMap((item: BackendChatMessage) => {
+        if (
+            (item.role !== 'user' && item.role !== 'assistant')
+            || typeof item.content !== 'string'
+            || !item.content.trim()
+        ) {
+            return [];
+        }
+
+        return [{ role: item.role, content: item.content.trim() }];
+    });
+}
+
+async function fetchChatHistory(): Promise<ChatMessage[]> {
+    const response = await fetch(`${API_BASE_URL}/api/chat`, {
+        headers: authHeaders(),
+    });
+    if (!response.ok) await parseApiError(response);
+    return normalizeChatMessages(await response.json());
+}
+
+async function sendChatMessage(content: string): Promise<ChatMessage> {
+    const response = await fetch(`${API_BASE_URL}/api/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain', ...authHeaders() },
+        body: content,
+    });
+    if (!response.ok) await parseApiError(response);
+
+    const messages = normalizeChatMessages(await response.json());
+    const reply = messages.findLast(message => message.role === 'assistant');
+    if (!reply) throw new Error('The assistant did not return a response. Please try again.');
+    return reply;
+}
+
+export type ChatHistoryQuery = UseQueryResult<NoInfer<ChatMessage[]>, Error>;
+
+export function useChatHistory(): ChatHistoryQuery {
+    return useQuery({
+        queryKey: CHAT_QUERY_KEY,
+        queryFn: fetchChatHistory,
+        retry: false,
+        staleTime: 30 * 1000,
+    });
+}
+
+export function useSendChatMessage() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: sendChatMessage,
+        onMutate: async (content: string) => {
+            await queryClient.cancelQueries({ queryKey: CHAT_QUERY_KEY });
+            const previous = queryClient.getQueryData<ChatMessage[]>(CHAT_QUERY_KEY) ?? [];
+            queryClient.setQueryData<ChatMessage[]>(CHAT_QUERY_KEY, [
+                ...previous,
+                { role: 'user', content },
+            ]);
+            return { previous };
+        },
+        onError: (_error, _content, context) => {
+            queryClient.setQueryData(CHAT_QUERY_KEY, context?.previous ?? []);
+        },
+        onSuccess: (reply) => {
+            queryClient.setQueryData<ChatMessage[]>(CHAT_QUERY_KEY, current => [
+                ...(current ?? []),
+                reply,
+            ]);
+        },
+    });
+}
