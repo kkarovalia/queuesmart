@@ -1,7 +1,7 @@
 #!/bin/bash
 
 usage() {
-    echo "Usage: $0 [--dev] [--local-llm] [--force-rebuild] [-h|--help]"
+    echo "Usage: $0 [--dev] [--local-llm] [--force-rebuild] [--build-only] [-h|--help]"
     echo
     echo "Launch queuesmart services."
     echo
@@ -10,12 +10,14 @@ usage() {
     echo "  --dev            Launch dev images with live editing"
     echo "  --local-llm      Include the local Qwen3.5 llama.cpp server"
     echo "  --force-rebuild  Rebuild images even if the target already matches"
+    echo "  --build-only     Build images without launching the stack"
     echo "  -h, --help       Show this help message and exit"
 }
 
 dev=false
 local_llm=false
 force_rebuild=false
+build_only=false
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -33,6 +35,10 @@ while [[ $# -gt 0 ]]; do
         ;;
     --force-rebuild)
         force_rebuild=true
+        shift
+        ;;
+    --build-only)
+        build_only=true
         shift
         ;;
     *)
@@ -83,4 +89,10 @@ frontend_type="$(docker inspect --format '{{ index .Config.Labels "build.target"
 backend_type="$(docker inspect --format '{{ index .Config.Labels "build.target" }}' queuesmart-backend:latest 2>/dev/null)"
 
 try_build "$target"
+
+if [[ "$build_only" == true ]]; then
+    echo "Build complete. Skipping launch (--build-only)."
+    exit 0
+fi
+
 launch

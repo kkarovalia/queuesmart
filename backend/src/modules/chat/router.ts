@@ -109,7 +109,7 @@ Rules:
 
 You are currently assisting: `
 
-chatRouter.get("/chat", requireAuth, async (req: AuthedRequest, res) => {
+chatRouter.get("/", requireAuth, async (req: AuthedRequest, res) => {
     const user = req.user ? await getUserById(req.user.sub) : undefined
     if (!user) {
         res.status(404).json({ error: 'User not found' })
@@ -136,7 +136,7 @@ chatRouter.post("/chat", requireAuth, async (req: AuthedRequest, res) => {
 
 // This version is for streamed text. 
 // Opt for above route if you want a simple '...' display while waiting for LLM response.
-chatRouter.post("/chat/stream", requireAuth, async (req: AuthedRequest, res) => {
+chatRouter.post("/stream", requireAuth, async (req: AuthedRequest, res) => {
     const user = req.user ? await getUserById(req.user.sub) : undefined
     if (!user) {
         res.status(404).json({ error: 'User not found' })

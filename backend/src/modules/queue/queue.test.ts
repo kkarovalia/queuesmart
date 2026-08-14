@@ -32,6 +32,7 @@ function fakeEntry(overrides: Partial<QueueEntry> = {}): QueueEntry {
         outcome: null,
         waitMinutes: null,
         joinedAt: new Date('2026-07-10T18:00:00Z'),
+        position: Date.now(),
         resolvedAt: null,
         ...overrides,
     }
@@ -48,6 +49,7 @@ async function createEntry(overrides: Partial<QueueEntry> = {}): Promise<QueueEn
             joinedAt: overrides.joinedAt,
             resolvedAt: overrides.resolvedAt,
             outcome: overrides.outcome,
+            position: Date.now(),
             waitMinutes: overrides.waitMinutes,
         },
     })
@@ -60,13 +62,13 @@ beforeAll(async () => {
     await prisma.service.deleteMany({ where: { name: { startsWith: 'Queue Test ' } } })
 
     user = await prisma.user.create({
-        data: { email: 'queue-test-user@example.com', passwordHash: 'not-used', role: 'user' },
+        data: { name: "Queue Test", email: 'queue-test-user@example.com', passwordHash: 'not-used', role: 'user' },
     })
     secondUser = await prisma.user.create({
-        data: { email: 'queue-test-second@example.com', passwordHash: 'not-used', role: 'user' },
+        data: { name: "Queue Test2", email: 'queue-test-second@example.com', passwordHash: 'not-used', role: 'user' },
     })
     admin = await prisma.user.create({
-        data: { email: 'queue-test-admin@example.com', passwordHash: 'not-used', role: 'admin' },
+        data: { name: "Queue TestAdm", email: 'queue-test-admin@example.com', passwordHash: 'not-used', role: 'admin' },
     })
     openService = await prisma.service.create({
         data: {

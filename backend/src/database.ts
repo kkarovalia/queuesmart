@@ -55,9 +55,11 @@ export async function getUserById(id: string): Promise<User | undefined> {
 }
 
 export interface NewUserInput {
+    name: string
     email: string
     passwordHash: string
     role: UserRole
+    phone?: string
 }
 
 export class EmailAlreadyRegisteredError extends Error {

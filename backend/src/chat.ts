@@ -63,7 +63,7 @@ export const getUserNotifications: Tool<object> = {
             description: "Gets a list of all user notifications, such as confirmations and cancellations."
         }
     },
-    handler: async (args, context) => {
+    handler: async (_args, context) => {
         const notifications = await getNotificationsByUserId(context.user.id)
         return JSON.stringify(notifications, null, 2)
     }
@@ -77,7 +77,7 @@ export const getUserQueueEntries: Tool<object> = {
             description: "Gets a list of all active queue entries for the current user."
         }
     },
-    handler: async (args, context) => {
+    handler: async (_args, context) => {
         const entries = await prisma.queueEntry.findMany({
             where: {
                 userId: context.user.id,
@@ -126,7 +126,7 @@ export const getOpenServices: Tool<object> = {
             description: "Gets a list of all open services (a.k.a. queues) the user can join."
         }
     },
-    handler: async (args, context) => {
+    handler: async (_args, _context) => {
         const entries = await prisma.service.findMany({
             where: {
                 status: "open"
