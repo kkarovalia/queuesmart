@@ -180,16 +180,18 @@ export async function getNotificationsByUserId(userId: string) {
     return notifications.map(toAppNotification)
 }
 
-export async function markNotificationRead(notificationId: string) {
-    try {
-        const notification = await prisma.notification.update({
-            where: { id: notificationId },
-            data: { read: true },
-        })
-        return toAppNotification(notification)
-    } catch {
-        return undefined
-    }
+// Scoped to the requesting user's own notifications (userId comes from the
+// caller's JWT, never the client) — updateMany rather than update so that
+// trying to mark someone else's notification just matches zero rows instead
+// of updating it or throwing.
+export async function markNotificationRead(notificationId: string, userId: string) {
+    const { count } = await prisma.notification.updateMany({
+        where: { id: notificationId, userId },
+        data: { read: true },
+    })
+    if (count === 0) return undefined
+    const notification = await prisma.notification.findUnique({ where: { id: notificationId } })
+    return notification ? toAppNotification(notification) : undefined
 }
 
 export async function toggleServiceStatus(id: string): Promise<Service | undefined> {

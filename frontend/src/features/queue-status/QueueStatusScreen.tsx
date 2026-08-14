@@ -15,7 +15,7 @@ export function QueueStatusScreen({ activeQueue, onAdvanceStatus, onLeaveQueue }
     const current = details[activeQueue.status]
     const step = activeQueue.status === 'waiting' ? 1 : activeQueue.status === 'almost-ready' ? 2 : 3
     return <section className="queue-page page" aria-labelledby="queue-status-heading">
-        <header className="page-header"><div><h1 id="queue-status-heading">{activeQueue.serviceName}</h1><p>Bistro 42</p></div><button className="queue-leave-link" type="button" onClick={onLeaveQueue}>Leave queue</button></header>
+        <header className="page-header"><div><h1 id="queue-status-heading">{activeQueue.serviceName}</h1><p>QueueSmart</p></div><button className="queue-leave-link" type="button" onClick={onLeaveQueue}>Leave queue</button></header>
         <div className="queue-card queue-status-card">
             <div className="queue-status-topline"><div><span className={`queue-status-pill ${activeQueue.status}`} role="status">{current.label}</span><h2>You're in line</h2><p>{current.description}</p></div><span>Joined {activeQueue.joinedAt}</span></div>
             <div className="queue-status-metrics"><div><UsersRound /><span>Current position<strong>{activeQueue.status === 'served' ? 'Ready' : activeQueue.position}</strong></span></div><div><Clock3 /><span>Estimated wait<strong>{activeQueue.estimatedWait}</strong></span></div></div>

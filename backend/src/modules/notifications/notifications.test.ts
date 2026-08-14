@@ -13,6 +13,9 @@ vi.mock('../../database.js', () => ({
 
 import { notifyQueueJoined, notifyAlmostReady, notifyServed } from './router.js'
 import { createApp } from '../../app.js'
+import { signToken } from '../../middleware/auth.js'
+
+const userAuth = `Bearer ${signToken({ sub: 'user-1', role: 'user' })}`
 
 describe('notifications module', () => {
     beforeEach(() => {
@@ -43,38 +46,55 @@ describe('notifications module', () => {
         })
     })
 
-    describe('GET /api/notifications/:userId', () => {
-        it("returns whatever database.ts's getNotificationsByUserId resolves with", async () => {
+    describe('GET /api/notifications/me', () => {
+        it("returns the authenticated user's own notifications, derived from the JWT", async () => {
             const fakeNotifications = [{ id: 'n-1', userId: 'user-1', kind: 'queue-joined', message: 'hi', createdAt: 'x', read: false }]
             mockGetByUser.mockResolvedValue(fakeNotifications)
 
             const app = createApp()
-            const res = await request(app).get('/api/notifications/user-1')
+            const res = await request(app).get('/api/notifications/me').set('Authorization', userAuth)
 
             expect(res.status).toBe(200)
             expect(res.body).toEqual(fakeNotifications)
             expect(mockGetByUser).toHaveBeenCalledWith('user-1')
         })
+
+        it('rejects a request with no token', async () => {
+            const app = createApp()
+            const res = await request(app).get('/api/notifications/me')
+
+            expect(res.status).toBe(401)
+            expect(mockGetByUser).not.toHaveBeenCalled()
+        })
     })
 
     describe('POST /api/notifications/:notificationId/read', () => {
-        it('marks a notification as read', async () => {
+        it('marks a notification as read, scoped to the authenticated user', async () => {
             mockMarkRead.mockResolvedValue({ id: 'n-1', userId: 'user-1', kind: 'queue-joined', message: 'hi', createdAt: 'x', read: true })
 
             const app = createApp()
-            const res = await request(app).post('/api/notifications/n-1/read')
+            const res = await request(app).post('/api/notifications/n-1/read').set('Authorization', userAuth)
 
             expect(res.status).toBe(200)
             expect(res.body.read).toBe(true)
+            expect(mockMarkRead).toHaveBeenCalledWith('n-1', 'user-1')
         })
 
-        it('returns 404 when database.ts reports the notification does not exist', async () => {
+        it("returns 404 when database.ts reports the notification doesn't exist or isn't the caller's", async () => {
             mockMarkRead.mockResolvedValue(undefined)
 
             const app = createApp()
-            const res = await request(app).post('/api/notifications/does-not-exist/read')
+            const res = await request(app).post('/api/notifications/does-not-exist/read').set('Authorization', userAuth)
 
             expect(res.status).toBe(404)
+        })
+
+        it('rejects a request with no token', async () => {
+            const app = createApp()
+            const res = await request(app).post('/api/notifications/n-1/read')
+
+            expect(res.status).toBe(401)
+            expect(mockMarkRead).not.toHaveBeenCalled()
         })
     })
 })

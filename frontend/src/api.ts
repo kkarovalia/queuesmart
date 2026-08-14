@@ -30,7 +30,6 @@ import type {
 import type { QueueNotification } from './types/queue';
 
 import {
-    mockQueueEntries,
     mockTables,
     mockReservations,
     mockMyQueueStatus,
@@ -42,7 +41,7 @@ import {
 const API_BASE_URL: string = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
 
 interface User {
-    id: string;
+    name: string;
     email: string;
     role: 'user' | 'admin';
 }
@@ -107,7 +106,6 @@ interface LoginInput {
 
 export interface AuthResponse {
     token: string;
-    id: string;
     email: string;
     role: 'user' | 'admin';
 }
@@ -136,15 +134,16 @@ export function useLogin(): LoginMutation {
 }
  
 interface RegisterInput {
+    name: string;
     email: string;
     password: string;
 }
- 
-async function register({ email, password }: RegisterInput): Promise<AuthResponse> {
+
+async function register({ name, email, password }: RegisterInput): Promise<AuthResponse> {
     const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ name, email, password }),
     });
     if (!response.ok) await parseApiError(response);
     return response.json();
@@ -209,11 +208,24 @@ export function useServices(): ServicesQuery {
     })
 }
 
+interface WaitTimeSummary {
+    serviceId: string;
+    waitingCount: number;
+    estimatedWaitMinutes: number;
+}
+
 async function fetchQueueLengths(): Promise<Record<string, number>> {
-    await new Promise(r => setTimeout(r, FAKE_DELAY_MS));
+    const services = await fetchServices();
+    const summaries = await Promise.all(
+        services.map(async service => {
+            const response = await fetch(`${API_BASE_URL}/api/wait-time/${service.id}`);
+            if (!response.ok) return null;
+            return (await response.json()) as WaitTimeSummary;
+        }),
+    );
     const lengths: Record<string, number> = {};
-    for (const entry of mockQueueEntries) {
-        lengths[entry.serviceId] = (lengths[entry.serviceId] ?? 0) + 1;
+    for (const summary of summaries) {
+        if (summary) lengths[summary.serviceId] = summary.waitingCount;
     }
     return lengths;
 }
@@ -655,9 +667,9 @@ interface BackendHistoryRecord {
 }
 
 async function fetchWaitlistHistory(): Promise<WaitlistHistoryRecord[]> {
-    // TODO: use the real logged-in user's id once Ian's auth module issues sessions.
-    const userId = '123';
-    const response = await fetch(`${API_BASE_URL}/api/history/${userId}`);
+    // Identity comes from the JWT (Authorization header), never a URL param —
+    // the backend derives "me" from the token via requireAuth.
+    const response = await fetch(`${API_BASE_URL}/api/history/me`, { headers: authHeaders() });
     if (!response.ok) {
         throw new Error(`Failed to load history (${response.status})`);
     }
@@ -732,8 +744,10 @@ interface BackendNotification {
     read: boolean;
 }
 
-async function fetchNotifications(userId: string): Promise<QueueNotification[]> {
-    const response = await fetch(`${API_BASE_URL}/api/notifications/${userId}`);
+async function fetchNotifications(): Promise<QueueNotification[]> {
+    // Identity comes from the JWT (Authorization header), never a URL param —
+    // the backend derives "me" from the token via requireAuth.
+    const response = await fetch(`${API_BASE_URL}/api/notifications/me`, { headers: authHeaders() });
     if (!response.ok) await parseApiError(response);
     const records: BackendNotification[] = await response.json();
     return records.map(record => ({
@@ -748,17 +762,20 @@ async function fetchNotifications(userId: string): Promise<QueueNotification[]> 
 
 export type NotificationsQuery = UseQueryResult<NoInfer<QueueNotification[]>, Error>;
 
-export function useNotifications(userId: string | undefined): NotificationsQuery {
+export function useNotifications(enabled: boolean): NotificationsQuery {
     return useQuery({
-        queryKey: ['notifications', userId],
-        queryFn: () => fetchNotifications(userId!),
-        enabled: Boolean(userId),
+        queryKey: ['notifications'],
+        queryFn: fetchNotifications,
+        enabled,
         staleTime: 15 * 1000,
     })
 }
 
 async function markNotificationRead(notificationId: string): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/api/notifications/${notificationId}/read`, { method: 'POST' });
+    const response = await fetch(`${API_BASE_URL}/api/notifications/${notificationId}/read`, {
+        method: 'POST',
+        headers: authHeaders(),
+    });
     if (!response.ok) await parseApiError(response);
 }
 

@@ -1,4 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { createRootRoute, createRoute, createRouter, RouterProvider } from '@tanstack/react-router'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -47,9 +48,22 @@ describe('admin queue management', () => {
         vi.stubGlobal('fetch', fetchMock)
 
         const user = userEvent.setup()
+        // A minimal ad-hoc router, not the real file-based routeTree: this
+        // component only needs *a* router context for its "Switch queue"
+        // <Link> to work (useRouter() throws without one), not the real
+        // app's route tree. Going through the real one means TanStack
+        // Router's auto-code-splitting lazy-loads this route, which doesn't
+        // play well with Vitest's transform pipeline for a dynamic segment.
+        const rootRoute = createRootRoute()
+        const testRoute = createRoute({
+            getParentRoute: () => rootRoute,
+            path: '/',
+            component: () => <QueueManagementPage serviceId={service.id} />,
+        })
+        const router = createRouter({ routeTree: rootRoute.addChildren([testRoute]) })
         render(
             <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-                <QueueManagementPage serviceId={service.id} />
+                <RouterProvider router={router} />
             </QueryClientProvider>,
         )
 

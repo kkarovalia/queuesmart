@@ -25,15 +25,14 @@ function formatWait(minutes: number): string {
 export function QueueFlowProvider({ children }: { children: ReactNode }) {
     const [activeQueue, setActiveQueue] = useState<ActiveQueueEntry | null>(null)
     const userQuery = useUser()
-    const userId = userQuery.data?.id
     const servicesQuery = useServices()
-    const notificationsQuery = useNotifications(userId)
+    const notificationsQuery = useNotifications(Boolean(userQuery.data))
     const markNotificationRead = useMarkNotificationRead()
     const queryClient = useQueryClient()
 
     const joinQueue = async (queueForm: QueueFormData) => {
         const service = servicesQuery.data?.find((item) => item.id === queueForm.serviceId)
-        if (!service || !userId) {
+        if (!service || !userQuery.data) {
             return
         }
 
@@ -43,7 +42,7 @@ export function QueueFlowProvider({ children }: { children: ReactNode }) {
         })
         // Joining creates a notification server-side; without this the UI
         // wouldn't see it until the notifications query's staleTime lapses.
-        queryClient.invalidateQueries({ queryKey: ['notifications', userId] })
+        queryClient.invalidateQueries({ queryKey: ['notifications'] })
 
         const waitStatus = await fetchEntryWaitStatus(queueForm.serviceId, entry.id)
 
@@ -78,7 +77,7 @@ export function QueueFlowProvider({ children }: { children: ReactNode }) {
         const waitStatus = await fetchEntryWaitStatus(activeQueue.serviceId, activeQueue.id)
         // A status change here (promoted to almost-ready, or served) means an
         // admin action created a notification for this user server-side.
-        queryClient.invalidateQueries({ queryKey: ['notifications', userId] })
+        queryClient.invalidateQueries({ queryKey: ['notifications'] })
 
         if (!waitStatus) {
             // No longer in the active queue and we didn't leave voluntarily, so

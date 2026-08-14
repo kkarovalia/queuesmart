@@ -17,4 +17,8 @@
 .queue-row__actions .icon-button { width: 32px; min-height: 32px; }
 .queue-row__remove { color: var(--red); border-color: #efb8bd; }
 
+.queue-picker-row { min-width: 480px; display: grid; grid-template-columns: minmax(180px, 1fr) 90px 90px 60px; align-items: center; gap: .5rem; padding: .75rem .8rem; font-size: .82rem; }
+.queue-picker-row + .queue-picker-row { border-top: 1px solid #e8ebef; }
+.queue-picker-row--head { color: var(--muted); font-size: .68rem; font-weight: 750; text-transform: uppercase; background: #f8fafb; border-bottom: 1px solid var(--border); }
+
 @media (max-width: 680px) { .queue-management__header-actions { width: 100%; } .queue-management__add > div { align-items: stretch; flex-direction: column; } }

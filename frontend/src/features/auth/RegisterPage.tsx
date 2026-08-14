@@ -66,7 +66,7 @@ export function RegisterPage() {
         setErrors(nextErrors)
         if (Object.keys(nextErrors).length > 0) return
 
-        register.mutate({ email: values.email, password: values.password }, {
+        register.mutate({ name: values.fullName, email: values.email, password: values.password }, {
             onSuccess: () => {
                 navigate({ to: '/dashboard' })
             },

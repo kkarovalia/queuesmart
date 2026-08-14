@@ -11,5 +11,11 @@ export default defineConfig([
         languageOptions: {
             globals: globals.node,
         },
+        rules: {
+            // Underscore-prefixed params are an intentionally-unused marker
+            // (e.g. a Tool handler's signature that doesn't need its args),
+            // not an oversight — don't flag those specifically.
+            '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+        },
     },
 ])

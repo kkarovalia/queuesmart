@@ -2,7 +2,7 @@ import express from "express"
 import { Router } from "express";
 import { AuthedRequest, requireAuth } from "../../middleware/auth.js";
 import { getUserById } from "../../database.js";
-import { ChatHistory, generate, generateStream, StreamEvent } from "../../chat.js";
+import { ChatHistory, generate } from "../../chat.js";
 
 export const chatRouter = Router()
 

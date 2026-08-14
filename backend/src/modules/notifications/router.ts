@@ -4,6 +4,7 @@ import {
     getNotificationsByUserId,
     markNotificationRead,
 } from '../../database.js'
+import { requireAuth, type AuthedRequest } from '../../middleware/auth.js'
 
 export const notificationsRouter = Router()
 
@@ -29,18 +30,18 @@ export async function notifyServed(userId: string, serviceName: string) {
     return createNotificationRecord(userId, 'served', `You've been served for ${serviceName}. Enjoy!`)
 }
 
-// Returns one user's notifications, newest first.
-notificationsRouter.get('/:userId', async (req, res) => {
-    const { userId } = req.params
-    const userNotifications = await getNotificationsByUserId(userId)
+// The logged-in user's own notifications. Identity comes solely from the
+// JWT (requireAuth sets req.user), never from a client-suppliable URL param.
+notificationsRouter.get('/me', requireAuth, async (req: AuthedRequest, res) => {
+    const userNotifications = await getNotificationsByUserId(req.user!.sub)
     res.json(userNotifications)
 })
 
-// Marks a single notification as read. Used by the frontend when a user
-// opens/views their notifications.
-notificationsRouter.post('/:notificationId/read', async (req, res) => {
+// Marks a single notification as read. Scoped to the caller's own
+// notifications — see database.ts's markNotificationRead.
+notificationsRouter.post('/:notificationId/read', requireAuth, async (req: AuthedRequest, res) => {
     const { notificationId } = req.params
-    const notification = await markNotificationRead(notificationId)
+    const notification = await markNotificationRead(notificationId, req.user!.sub)
     if (!notification) {
         res.status(404).json({ error: 'Notification not found' })
         return

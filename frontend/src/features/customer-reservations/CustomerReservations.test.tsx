@@ -12,6 +12,6 @@ describe('customer reservations', () => {
         await user.clear(screen.getByLabelText(/date and time/i))
         await user.click(screen.getByRole('button', { name: /reserve table/i }))
         expect(screen.getByText(/choose a reservation date and time/i)).toBeInTheDocument()
-        expect(await screen.findByText('Bistro 42', {}, { timeout: 3000 })).toBeInTheDocument()
+        expect(await screen.findByText('Reservation', {}, { timeout: 3000 })).toBeInTheDocument()
     })
 })

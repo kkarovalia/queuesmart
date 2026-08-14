@@ -1,4 +1,5 @@
-import { BellRing } from 'lucide-react'
+import { Link } from '@tanstack/react-router'
+import { BellRing, ListTree } from 'lucide-react'
 import { useQueueForService, useServeNextInQueue, useService } from '../../api'
 import { QueueListItem } from './QueueListItem'
 import './queue-management.css'
@@ -14,6 +15,7 @@ export function QueueManagementPage({ serviceId }: { serviceId: string }) {
         <header className="page-header">
             <div><h1>{service.data?.name ?? 'Queue Management'}</h1><p>{entries.length} parties currently waiting, ordered by priority then arrival time.</p></div>
             <div className="queue-management__header-actions">
+                <Link to="/admin/queue" className="secondary-button"><ListTree size={17} />Switch queue</Link>
                 <button className="primary-button" type="button" onClick={() => serveNext.mutate()} disabled={entries.length === 0 || serveNext.isPending}>
                     <BellRing size={17} />Serve next
                 </button>

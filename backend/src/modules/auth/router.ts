@@ -80,5 +80,5 @@ authRouter.get('/me', requireAuth, async (req: AuthedRequest, res) => {
         res.status(404).json({ error: 'User not found' })
         return
     }
-    res.json({ email: user.email, role: user.role })
+    res.json({ name: user.name, email: user.email, role: user.role })
 })

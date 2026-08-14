@@ -1,7 +1,7 @@
-import { Link, Outlet, useRouterState } from '@tanstack/react-router'
+import { useEffect } from 'react'
+import { Link, Outlet, useNavigate, useRouterState } from '@tanstack/react-router'
 import {
     Bell,
-    CalendarDays,
     ClipboardList,
     ConciergeBell,
     FileBarChart,
@@ -9,20 +9,20 @@ import {
     LayoutDashboard,
     LogOut,
     MessageCircle,
-    Settings,
-    TableProperties,
     UsersRound,
 } from 'lucide-react'
 import { useQueueFlow } from '../features/queue-flow/useQueueFlow'
 import { useLogout, useUser } from '../api'
 import './AppShell.css'
 
+// Tables/Reservations have no real backend yet (same gap since A3) — left
+// out of the nav so the demo doesn't wander into features with no data
+// behind them. Routes/pages still exist, just not linked from here.
 const userLinks = [
     { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { to: '/join-queue', label: 'Join Queue', icon: UsersRound },
     { to: '/queue-status', label: 'My Queue', icon: ClipboardList },
     { to: '/assistant', label: 'Queue Assistant', icon: MessageCircle },
-    { to: '/reservations', label: 'Reservations', icon: CalendarDays },
     { to: '/history', label: 'History', icon: History },
     { to: '/notifications', label: 'Notifications', icon: Bell },
 ] as const
@@ -30,8 +30,6 @@ const userLinks = [
 const adminLinks = [
     { to: '/admin', label: 'Dashboard', icon: LayoutDashboard },
     { to: '/admin/queue', label: 'Queue Management', icon: UsersRound },
-    { to: '/admin/tables', label: 'Tables', icon: TableProperties },
-    { to: '/admin/reservations', label: 'Reservations', icon: CalendarDays },
     { to: '/admin/history', label: 'History', icon: History },
     { to: '/admin/reports', label: 'Reports', icon: FileBarChart },
 ] as const
@@ -47,6 +45,7 @@ function Brand({ compact = false }: { compact?: boolean }) {
 
 export function AppShell() {
     const pathname = useRouterState({ select: state => state.location.pathname })
+    const navigate = useNavigate()
     const logout = useLogout()
     const { data: user, isLoading: userLoading } = useUser()
     const { notifications } = useQueueFlow()
@@ -55,12 +54,27 @@ export function AppShell() {
     const isAdmin = pathname.startsWith('/admin')
     const links = isAdmin ? adminLinks : userLinks
 
+    // No frontend route is otherwise gated by authentication — without this,
+    // any URL is reachable directly regardless of login state. The backend
+    // still enforces requireAuth/requireRole on every real action, but a
+    // logged-out (or wrong-role) visitor shouldn't even see the page shell.
+    useEffect(() => {
+        if (userLoading || isAuth) return
+        if (!user) {
+            navigate({ to: '/login' })
+            return
+        }
+        if (isAdmin && user.role !== 'admin') {
+            navigate({ to: '/dashboard' })
+        }
+    }, [userLoading, isAuth, user, isAdmin, navigate])
+
     const identityInitial = userLoading
         ? '…'
-        : (user?.email?.[0]?.toUpperCase() ?? '?')
+        : (user?.name?.[0]?.toUpperCase() ?? '?')
     const identityName = userLoading
         ? 'Loading…'
-        : (user?.email ?? 'Not signed in')
+        : (user?.name ?? 'Not signed in')
     const identityRole = userLoading
         ? ''
         : (user?.role === 'admin' ? 'Administrator' : user ? 'Customer' : '')
@@ -72,6 +86,12 @@ export function AppShell() {
                 <Outlet />
             </main>
         )
+    }
+
+    // A redirect is already in flight from the effect above — render nothing
+    // rather than flash the shell (or the wrong role's nav) for a tick.
+    if (!userLoading && (!user || (isAdmin && user.role !== 'admin'))) {
+        return null
     }
 
     return (
@@ -92,8 +112,9 @@ export function AppShell() {
                     ))}
                 </nav>
                 <div className="app-sidebar__utility">
-                    <span><Settings size={17} aria-hidden="true" /> Settings</span>
-                    <Link to={isAdmin ? '/dashboard' : '/admin'}>{isAdmin ? 'Customer view' : 'Admin demo'}</Link>
+                    {user?.role === 'admin' && (
+                        <Link to={isAdmin ? '/dashboard' : '/admin'}>{isAdmin ? 'Customer view' : 'Admin view'}</Link>
+                    )}
                     <Link to="/login" onClick={() => logout()}>
                         <LogOut size={17} aria-hidden="true" /> Log out
                     </Link>
