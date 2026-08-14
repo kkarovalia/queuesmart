@@ -102,3 +102,51 @@ export interface AppNotification {
     createdAt: string
     read: boolean
 }
+
+// --- Reporting (Final Project). Backend: backend/src/modules/reports ---
+// Matches the real backend response shapes exactly (database.ts's
+// UserParticipationRow / ServiceActivityRow / UsageSummaryReport), not a
+// guess. Three separate reports, matching the assignment's three required
+// report contents: participation history, service/queue activity, and
+// usage stats.
+
+export interface ReportFilters {
+    from: string
+    to: string
+    serviceId: string | 'all'
+}
+
+export interface UserParticipationRow {
+    userId: string
+    userName: string
+    userEmail: string
+    serviceId: string
+    serviceName: string
+    partySize: number
+    joinedAt: string
+    resolvedAt: string
+    outcome: WaitlistOutcome
+    waitMinutes: number
+}
+
+export interface ServiceActivityRow {
+    serviceId: string
+    serviceName: string
+    status: ServiceStatus
+    priority: PriorityLevel
+    totalEntries: number
+    seatedCount: number
+    cancelledCount: number
+    noShowCount: number
+    averageWaitMinutes: number
+}
+
+export interface UsageSummaryReport {
+    totalServed: number
+    totalCancelled: number
+    totalNoShow: number
+    averageWaitMinutes: number
+    busiestService: { serviceName: string; totalEntries: number } | null
+    rangeFrom: string | null
+    rangeTo: string | null
+}

@@ -4,6 +4,7 @@ import {
     CalendarDays,
     ClipboardList,
     ConciergeBell,
+    FileBarChart,
     History,
     LayoutDashboard,
     LogOut,
@@ -30,6 +31,7 @@ const adminLinks = [
     { to: '/admin/tables', label: 'Tables', icon: TableProperties },
     { to: '/admin/reservations', label: 'Reservations', icon: CalendarDays },
     { to: '/admin/history', label: 'History', icon: History },
+    { to: '/admin/reports', label: 'Reports', icon: FileBarChart },
 ] as const
 
 function Brand({ compact = false }: { compact?: boolean }) {
