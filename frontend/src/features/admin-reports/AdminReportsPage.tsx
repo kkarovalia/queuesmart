@@ -1,6 +1,5 @@
 import { useState } from 'react'
-import { useGenerateReport, downloadReportCsv, type ReportKind } from '../../api'
-import { mockServices } from '../../data/mockData'
+import { useGenerateReport, useServices, downloadReportCsv, type ReportKind } from '../../api'
 import type { ReportFilters } from '../../contracts/types'
 import './admin-reports.css'
 import '../admin-dashboard/admin-dashboard.css'
@@ -11,6 +10,7 @@ export function AdminReportsPage() {
     const [downloading, setDownloading] = useState<ReportKind | null>(null)
     const [downloadError, setDownloadError] = useState<string | null>(null)
     const reportMutation = useGenerateReport()
+    const servicesQuery = useServices()
 
     function handleGenerate() {
         reportMutation.mutate(filters)
@@ -66,7 +66,7 @@ export function AdminReportsPage() {
                         onChange={e => setFilters(prev => ({ ...prev, serviceId: e.target.value }))}
                     >
                         <option value="all">All services</option>
-                        {mockServices.map(service => (
+                        {(servicesQuery.data ?? []).map(service => (
                             <option key={service.id} value={service.id}>{service.name}</option>
                         ))}
                     </select>

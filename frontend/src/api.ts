@@ -548,6 +548,8 @@ export interface QueueEntry {
     id: string;
     serviceId: string;
     userId: string;
+    userName: string;
+    userEmail: string;
     partySize: number;
     priority: PriorityLevel;
     status: 'waiting' | 'almost-ready' | 'served' | 'left';

@@ -1,5 +1,6 @@
 import cors from 'cors'
 import express from 'express'
+import type { NextFunction, Request, Response } from 'express'
 import morgan from 'morgan'
 import { authRouter } from './modules/auth/router.js'
 import { servicesRouter } from './modules/services/router.js'
@@ -28,6 +29,17 @@ export function createApp() {
     app.use('/api/history', historyRouter)
     app.use('/api/chat', chatRouter)
     app.use('/api/reports', reportsRouter)
+
+    // Final safety net: a route handler throwing or rejecting (e.g. the LLM
+    // provider erroring out) must never be allowed to become an unhandled
+    // rejection — without this, Express 4 doesn't catch those on its own,
+    // and an unhandled rejection crashes the whole process for every user,
+    // not just the one request that failed.
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+        console.error(err)
+        res.status(500).json({ error: 'Internal server error' })
+    })
 
     return app
 }

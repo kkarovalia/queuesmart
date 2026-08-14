@@ -47,7 +47,7 @@ export function AppShell() {
     const pathname = useRouterState({ select: state => state.location.pathname })
     const navigate = useNavigate()
     const logout = useLogout()
-    const { data: user, isLoading: userLoading } = useUser()
+    const { data: user, isLoading: userLoading, isFetching: userFetching } = useUser()
     const { notifications } = useQueueFlow()
     const unreadCount = notifications.filter(notification => !notification.read).length
     const isAuth = pathname === '/login' || pathname === '/register'
@@ -58,8 +58,16 @@ export function AppShell() {
     // any URL is reachable directly regardless of login state. The backend
     // still enforces requireAuth/requireRole on every real action, but a
     // logged-out (or wrong-role) visitor shouldn't even see the page shell.
+    //
+    // Must also wait out userFetching, not just userLoading: right after
+    // login, the 'user' query already has a cached `data: null` from an
+    // earlier unauthenticated check on this same page load (isLoading only
+    // reflects a query's very first fetch, not the invalidate-triggered
+    // refetch that follows login). Without this, the guard sees the stale
+    // null and bounces straight back to /login before the refetch — which
+    // would actually confirm the login — has a chance to resolve.
     useEffect(() => {
-        if (userLoading || isAuth) return
+        if (userLoading || userFetching || isAuth) return
         if (!user) {
             navigate({ to: '/login' })
             return
@@ -67,7 +75,7 @@ export function AppShell() {
         if (isAdmin && user.role !== 'admin') {
             navigate({ to: '/dashboard' })
         }
-    }, [userLoading, isAuth, user, isAdmin, navigate])
+    }, [userLoading, userFetching, isAuth, user, isAdmin, navigate])
 
     const identityInitial = userLoading
         ? '…'
@@ -89,8 +97,10 @@ export function AppShell() {
     }
 
     // A redirect is already in flight from the effect above — render nothing
-    // rather than flash the shell (or the wrong role's nav) for a tick.
-    if (!userLoading && (!user || (isAdmin && user.role !== 'admin'))) {
+    // rather than flash the shell (or the wrong role's nav) for a tick. Same
+    // userFetching wait as the effect: don't blank the page out from under a
+    // just-logged-in user while their stale cached data is still refetching.
+    if (!userLoading && !userFetching && (!user || (isAdmin && user.role !== 'admin'))) {
         return null
     }
 
