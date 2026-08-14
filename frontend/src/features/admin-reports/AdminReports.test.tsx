@@ -27,8 +27,15 @@ const mockSummary = {
     rangeTo: null,
 }
 
+const mockServices = [
+    { id: 'svc-1', name: 'Dinner Waitlist', description: '', expectedDurationMinutes: 45, priority: 'high', status: 'open' },
+]
+
 function stubFetch(overrides?: { status?: number; body?: object }) {
     vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+        if (url.includes('/api/services')) {
+            return new Response(JSON.stringify(mockServices), { status: 200 })
+        }
         if (overrides) {
             return new Response(JSON.stringify(overrides.body ?? {}), { status: overrides.status ?? 200 })
         }

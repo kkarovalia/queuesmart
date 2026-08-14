@@ -11,11 +11,16 @@ const VALID_PRIORITIES: PriorityLevel[] = ['low', 'medium', 'high']
 const ACTIVE_STATUSES = ['waiting', 'almost_ready'] as const
 const MAX_PARTY_SIZE = 20
 
+// select (not include: true) so a passwordHash never even enters process
+// memory here, on top of toQueueEntryView already only reading name/email.
+const USER_SELECT = { user: { select: { name: true, email: true } } } as const
+type QueueEntryWithUser = QueueEntry & { user: { name: string; email: string } }
+
 export function resolveEntryPriority(entry: QueueEntry, service: Service): PriorityLevel {
     return entry.priority ?? service.priority
 }
 
-export function sortQueueEntries(entries: QueueEntry[], service: Service): QueueEntry[] {
+export function sortQueueEntries<T extends QueueEntry>(entries: T[], service: Service): T[] {
     return [...entries].sort((a, b) => {
         const priorityDifference =
             PRIORITY_RANK[resolveEntryPriority(a, service)] - PRIORITY_RANK[resolveEntryPriority(b, service)]
@@ -23,14 +28,15 @@ export function sortQueueEntries(entries: QueueEntry[], service: Service): Queue
     })
 }
 
-export async function getCurrentQueue(service: Service): Promise<QueueEntry[]> {
+export async function getCurrentQueue(service: Service): Promise<QueueEntryWithUser[]> {
     const entries = await prisma.queueEntry.findMany({
         where: { serviceId: service.id, status: { in: [...ACTIVE_STATUSES] } },
+        include: USER_SELECT,
     })
     return sortQueueEntries(entries, service)
 }
 
-export async function syncAlmostReady(service: Service): Promise<QueueEntry | null> {
+export async function syncAlmostReady(service: Service): Promise<QueueEntryWithUser | null> {
     const [front] = await getCurrentQueue(service)
 
     await prisma.queueEntry.updateMany({
@@ -47,14 +53,17 @@ export async function syncAlmostReady(service: Service): Promise<QueueEntry | nu
     return prisma.queueEntry.update({
         where: { id: front.id },
         data: { status: 'almost_ready' },
+        include: USER_SELECT,
     })
 }
 
-function toQueueEntryView(entry: QueueEntry, service: Service, position?: number) {
+function toQueueEntryView(entry: QueueEntryWithUser, service: Service, position?: number) {
     return {
         id: entry.id,
         serviceId: entry.serviceId,
         userId: entry.userId,
+        userName: entry.user.name,
+        userEmail: entry.user.email,
         partySize: entry.partySize,
         priority: resolveEntryPriority(entry, service),
         status: entry.status === 'almost_ready' ? 'almost-ready' : entry.status,
@@ -132,6 +141,7 @@ queueRouter.post('/:serviceId/join', requireAuth, async (req: AuthedRequest, res
                 status: 'waiting',
                 position: Date.now(),
             },
+            include: USER_SELECT,
         })
         await notifyQueueJoined(userId, service.name)
 
@@ -170,6 +180,7 @@ queueRouter.post('/:serviceId/leave', requireAuth, async (req: AuthedRequest, re
         const left = await prisma.queueEntry.update({
             where: { id: entry.id },
             data: { status: 'left', resolvedAt: new Date(), outcome: 'cancelled' },
+            include: USER_SELECT,
         })
         const promoted = await syncAlmostReady(service)
         if (promoted) await notifyAlmostReady(promoted.userId, service.name)
@@ -203,6 +214,7 @@ queueRouter.post('/:serviceId/serve-next', requireAuth, requireRole('admin'), as
                 outcome: 'seated',
                 waitMinutes: Math.max(0, Math.round((resolvedAt.getTime() - nextEntry.joinedAt.getTime()) / 60_000)),
             },
+            include: USER_SELECT,
         })
         await notifyServed(served.userId, service.name)
 
@@ -239,6 +251,7 @@ queueRouter.post('/:serviceId/no-show', requireAuth, requireRole('admin'), async
         const noShow = await prisma.queueEntry.update({
             where: { id: nextEntry.id },
             data: { status: 'left', resolvedAt: new Date(), outcome: 'no_show' },
+            include: USER_SELECT,
         })
 
         const promoted = await syncAlmostReady(service)

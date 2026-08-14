@@ -6,20 +6,14 @@ export function JoinQueuePage() {
     const services = useServices()
     const { activeQueue, joinQueue, leaveQueue } = useQueueFlow()
 
-    if (services.isLoading) {
-        return  (
-            "Loading services..."
-        )
-    }
+    if (services.isLoading) return <p>Loading services...</p>
+    if (services.isError || services.data == null) return <p role="alert">Failed to load services.</p>
 
-    if (services.isError || services.data == null) {
-        return (
-            "Error loading services."
-        )
-    }
-
-    const queueLengths = services.data.reduce<Record<string, number>>((lengths, entry) => {
-        lengths[entry.id] = Math.max(0, (entry.queueLength ?? 0) + (entry.userInQueue ? -1 : 0))
+    // queueLength counts everyone currently active for the service; subtract
+    // the viewer's own entry (if any) so "parties ahead" doesn't count them
+    // against themselves.
+    const queueLengths = services.data.reduce<Record<string, number>>((lengths, service) => {
+        lengths[service.id] = Math.max(0, (service.queueLength ?? 0) + (service.userInQueue ? -1 : 0))
         return lengths
     }, {})
 

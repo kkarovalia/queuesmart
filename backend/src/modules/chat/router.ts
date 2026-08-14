@@ -111,31 +111,39 @@ You are currently assisting: `
 
 const allowed_messages = new Set<string>(["user", "assistant"])
 
-chatRouter.get("/", requireAuth, async (req: AuthedRequest, res) => {
-    const user = req.user ? await getUserById(req.user.sub) : undefined
-    if (!user) {
-        res.status(404).json({ error: 'User not found' })
-        return
+chatRouter.get("/", requireAuth, async (req: AuthedRequest, res, next) => {
+    try {
+        const user = req.user ? await getUserById(req.user.sub) : undefined
+        if (!user) {
+            res.status(404).json({ error: 'User not found' })
+            return
+        }
+        const history = chat_history.get(user.id)
+        res.json(history ? history.slice(1)
+            .filter(msg => allowed_messages.has(msg.role) && msg.content ? msg.content.length > 0 : false)
+            .map(msg => ({ role: msg.role, content: msg.content })) : [])
+    } catch (error) {
+        next(error)
     }
-    const history = chat_history.get(user.id)
-    res.json(history ? history.slice(1)
-        .filter(msg => allowed_messages.has(msg.role) && msg.content ? msg.content.length > 0 : false)
-        .map(msg => ({ role: msg.role, content: msg.content })) : [])
 })
 
-chatRouter.post("/", requireAuth, async (req: AuthedRequest, res) => {
-    const user = req.user ? await getUserById(req.user.sub) : undefined
-    if (!user) {
-        res.status(404).json({ error: 'User not found' })
-        return
+chatRouter.post("/", requireAuth, async (req: AuthedRequest, res, next) => {
+    try {
+        const user = req.user ? await getUserById(req.user.sub) : undefined
+        if (!user) {
+            res.status(404).json({ error: 'User not found' })
+            return
+        }
+        const history = chat_history.get(user.id) ?? [
+            { role: "system", content: systemMsg + user.name }
+        ]
+        history.push({ role: "user", content: req.body })
+        const output = await generate(history, { user })
+        chat_history.set(user.id, output)
+        res.json(output.slice(history.length)
+            .filter(msg => msg.role == "assistant" && msg.content ? msg.content.length > 0 : false)
+            .map(msg => ({ role: msg.role, content: msg.content })))
+    } catch (error) {
+        next(error)
     }
-    const history = chat_history.get(user.id) ?? [
-        { role: "system", content: systemMsg + user.name }
-    ]
-    history.push({ role: "user", content: req.body })
-    const output = await generate(history, { user })
-    chat_history.set(user.id, output)
-    res.json(output.slice(history.length)
-        .filter(msg => msg.role == "assistant" && msg.content ? msg.content.length > 0 : false)
-        .map(msg => ({ role: msg.role, content: msg.content })))
 })

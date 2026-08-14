@@ -1,13 +1,16 @@
 import { Link } from '@tanstack/react-router'
 import { Bell, Clock3, UsersRound } from 'lucide-react'
-import { useUser } from '../../api'
-import { mockServices, mockQueueEntries } from '../../data/mockData'
+import { useQueueLengths, useServices, useUser } from '../../api'
 import { useQueueFlow } from '../queue-flow/useQueueFlow'
 import './user-dashboard.css'
 
 export function UserDashboardPage() {
     const { activeQueue, notifications } = useQueueFlow()
     const { data: user } = useUser()
+    const servicesQuery = useServices()
+    const queueLengthsQuery = useQueueLengths()
+    const services = servicesQuery.data ?? []
+    const queueLengths = queueLengthsQuery.data ?? {}
     const unread = notifications.filter(note => !note.read)
 
     return <section className="user-dashboard page">
@@ -25,8 +28,8 @@ export function UserDashboardPage() {
         </div>
 
         <section className="dashboard-section"><div className="dashboard-section__header"><div><h2>Popular services</h2><p>Join a walk-in waitlist</p></div></div>
-            <div className="service-grid">{mockServices.slice(0, 3).map(service => {
-                const queueLength = mockQueueEntries.filter(entry => entry.serviceId === service.id).length
+            <div className="service-grid">{services.slice(0, 3).map(service => {
+                const queueLength = queueLengths[service.id] ?? 0
                 return <article className="service-tile" key={service.id}><div><h3>{service.name}</h3><span className={service.status === 'open' ? 'service-open' : 'service-closed'}>{service.status === 'open' ? 'Open' : 'Closed'}</span></div><div className="service-tile__wait"><Clock3 size={17} /><strong>{service.estimatedWait}</strong></div><p>{queueLength} parties waiting</p><Link to="/join-queue">Join <span aria-hidden="true">→</span></Link></article>
             })}</div>
         </section>
