@@ -133,23 +133,93 @@
     color: var(--teal-dark);
 }
 .chat-message--user .chat-message__avatar { background: var(--navy); color: #fff; }
-.chat-message > div { display: grid; gap: .3rem; }
+.chat-message > div { display: grid; gap: .3rem; min-width: 0; }
 .chat-message--user > div { justify-items: end; }
 .chat-message__author { color: var(--muted); font-size: .67rem; font-weight: 750; }
-.chat-message p {
-    margin: 0;
+
+/* Message bubble — applied once to the wrapper around the rendered markdown,
+   not to every nested <p>, so lists/headings/etc. don't each get boxed. */
+.chat-message__body {
     padding: .7rem .85rem;
     border: 1px solid var(--border);
     border-radius: 4px 14px 14px 14px;
     background: #fff;
     color: var(--ink);
     line-height: 1.5;
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
     font-size: .88rem;
+    overflow-wrap: anywhere;
     box-shadow: 0 4px 12px rgba(31, 41, 51, .04);
 }
-.chat-message--user p { border-color: var(--teal); border-radius: 14px 4px 14px 14px; background: var(--teal); color: #fff; }
+.chat-message--user .chat-message__body {
+    border-color: var(--teal);
+    border-radius: 14px 4px 14px 14px;
+    background: var(--teal);
+    color: #fff;
+}
+
+/* Markdown content inside a message bubble */
+.chat-message__body p { margin: 0 0 .6em; white-space: pre-wrap; }
+.chat-message__body p:last-child { margin-bottom: 0; }
+
+.chat-message__body ul,
+.chat-message__body ol {
+    margin: .35em 0 .6em 1.25em;
+    padding: 0;
+}
+.chat-message__body ul:last-child,
+.chat-message__body ol:last-child { margin-bottom: 0; }
+.chat-message__body li { margin-bottom: .3em; }
+.chat-message__body li:last-child { margin-bottom: 0; }
+.chat-message__body li > p { margin: 0 0 .25em; }
+.chat-message__body li > p:last-child { margin-bottom: 0; }
+
+.chat-message__body strong { font-weight: 700; }
+.chat-message__body em { font-style: italic; }
+
+.chat-message__body a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+
+.chat-message__body code {
+    background: rgba(0, 0, 0, .06);
+    padding: .1em .35em;
+    border-radius: 4px;
+    font-size: .9em;
+}
+.chat-message--user .chat-message__body code { background: rgba(255, 255, 255, .18); }
+
+.chat-message__body pre {
+    margin: 0 0 .6em;
+    padding: .6em .8em;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, .06);
+    overflow-x: auto;
+}
+.chat-message--user .chat-message__body pre { background: rgba(255, 255, 255, .18); }
+.chat-message__body pre code { background: none; padding: 0; }
+
+.chat-message__body blockquote {
+    margin: 0 0 .6em;
+    padding-left: .75em;
+    border-left: 3px solid currentColor;
+    opacity: .85;
+}
+
+.chat-message__body hr { margin: .6em 0; border: none; border-top: 1px solid currentColor; opacity: .25; }
+
+.chat-message__body table {
+    width: 100%;
+    margin: 0 0 .6em;
+    border-collapse: collapse;
+    font-size: .85em;
+}
+.chat-message__body th,
+.chat-message__body td {
+    padding: .35em .5em;
+    border: 1px solid currentColor;
+    border-color: rgba(0, 0, 0, .1);
+    text-align: left;
+}
+.chat-message--user .chat-message__body th,
+.chat-message--user .chat-message__body td { border-color: rgba(255, 255, 255, .25); }
 
 .chat-typing { display: flex; align-items: center; gap: .25rem; min-height: 39px; }
 .chat-typing span, .chat-loading > span {

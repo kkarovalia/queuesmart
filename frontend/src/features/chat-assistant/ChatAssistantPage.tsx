@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import { Bot, Clock3, Send, ShieldCheck, Sparkles, UserRound } from 'lucide-react'
 import { useChatHistory, useSendChatMessage } from '../../api'
+import Markdown from 'react-markdown'
 import './chat-assistant.css'
 
 const MAX_MESSAGE_LENGTH = 500
@@ -88,7 +89,11 @@ export function ChatAssistantPage() {
                                 <span className="chat-message__avatar">
                                     {message.role === 'assistant' ? <Bot size={17} aria-hidden="true" /> : <UserRound size={17} aria-hidden="true" />}
                                 </span>
-                                <div><span className="chat-message__author">{message.role === 'assistant' ? 'Queue Assistant' : 'You'}</span><p>{message.content}</p></div>
+                                <div><span className="chat-message__author">{message.role === 'assistant' ? 'Queue Assistant' : 'You'}</span>
+                                    <div className="chat-message__body">
+                                        <Markdown>{message.content}</Markdown>
+                                    </div>
+                                </div>
                             </article>
                         ))}
 
