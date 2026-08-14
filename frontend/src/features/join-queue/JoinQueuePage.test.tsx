@@ -22,6 +22,7 @@ vi.mock('../../api', () => ({
     useUser: () => ({ data: { name: 'Jamie', email: 'jamie@example.com', role: 'user' } }),
     useServices: () => ({
         isLoading: false,
+        isError: false,
         data: [{
             id: REAL_SERVICE_ID,
             name: 'Dinner Waitlist',
@@ -31,9 +32,10 @@ vi.mock('../../api', () => ({
             status: 'open',
             estimatedWait: '45 min',
             tablePreferenceLabel: 'Any available table',
+            queueLength: 3,
+            userInQueue: false,
         }],
     }),
-    useQueueLengths: () => ({ data: {} }),
     useNotifications: () => ({ data: [] }),
     useMarkNotificationRead: () => ({ mutate: vi.fn() }),
     joinQueue: apiMocks.joinQueue,
@@ -63,6 +65,7 @@ describe('JoinQueuePage', () => {
         )
 
         expect(screen.getByRole('option', { name: 'Dinner Waitlist' })).toBeInTheDocument()
+        expect(screen.getByText(/parties ahead/i).closest('div')).toHaveTextContent('3')
         await user.click(screen.getByRole('button', { name: /join waitlist/i }))
 
         expect(apiMocks.joinQueue).toHaveBeenCalledWith({ serviceId: REAL_SERVICE_ID, partySize: 4 })

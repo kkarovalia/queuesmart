@@ -59,12 +59,35 @@ const validInput = {
 
 describe('services module', () => {
     describe('GET /api/services', () => {
-        it('lists services without requiring auth', async () => {
+        it('rejects an unauthenticated request', async () => {
             const app = createApp()
             const res = await request(app).get('/api/services')
 
+            expect(res.status).toBe(401)
+        })
+
+        it('lists services with per-user queue info for an authenticated request', async () => {
+            const app = createApp()
+            const token = await loginAs(app, 'jamie@example.com', 'demo-user')
+            const res = await request(app).get('/api/services').set('Authorization', `Bearer ${token}`)
+
             expect(res.status).toBe(200)
             expect(res.body.length).toBeGreaterThan(0)
+            const service = res.body.find((s: { id: string }) => s.id === baseService.id)
+            expect(service).toMatchObject({ queueLength: 0, userInQueue: false })
+        })
+
+        it('reflects the requester\'s own active entry via userInQueue', async () => {
+            const app = createApp()
+            const token = await loginAs(app, 'jamie@example.com', 'demo-user')
+            await request(app)
+                .post(`/api/queue/${baseService.id}/join`)
+                .set('Authorization', `Bearer ${token}`)
+                .send({ partySize: 2 })
+
+            const res = await request(app).get('/api/services').set('Authorization', `Bearer ${token}`)
+            const service = res.body.find((s: { id: string }) => s.id === baseService.id)
+            expect(service).toMatchObject({ queueLength: 1, userInQueue: true })
         })
     })
 
