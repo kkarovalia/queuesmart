@@ -119,7 +119,7 @@ chatRouter.get("/", requireAuth, async (req: AuthedRequest, res) => {
     res.json(history ? history.slice(1) : [])
 })
 
-chatRouter.post("/chat", requireAuth, async (req: AuthedRequest, res) => {
+chatRouter.post("/", requireAuth, async (req: AuthedRequest, res) => {
     const user = req.user ? await getUserById(req.user.sub) : undefined
     if (!user) {
         res.status(404).json({ error: 'User not found' })
