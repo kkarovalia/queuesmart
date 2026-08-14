@@ -621,6 +621,32 @@ export function useServeNextInQueue(serviceId: string): ServeNextMutation {
     })
 }
 
+interface NoShowResult {
+    noShow: QueueEntryView;
+    nowAlmostReady: QueueEntryView | null;
+}
+
+async function markNoShowInQueue(serviceId: string): Promise<NoShowResult> {
+    const response = await fetch(`${API_BASE_URL}/api/queue/${serviceId}/no-show`, {
+        method: 'POST',
+        headers: authHeaders(),
+    });
+    if (!response.ok) await parseApiError(response);
+    return response.json();
+}
+
+export type MarkNoShowMutation = UseMutationResult<NoInfer<NoShowResult>, Error, void>;
+
+export function useMarkNoShow(serviceId: string): MarkNoShowMutation {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: () => markNoShowInQueue(serviceId),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['queueForService', serviceId] });
+        },
+    })
+}
+
 // --- Wait-Time Estimation (backend/src/modules/wait-time/router.ts) ---
 export interface EntryWaitStatus {
     entryId: string;
@@ -700,7 +726,9 @@ interface BackendAdminHistoryRecord extends BackendHistoryRecord {
 }
 
 async function fetchAllHistory(): Promise<AdminHistoryRecord[]> {
-    const response = await fetch(`${API_BASE_URL}/api/history`);
+    // Admin-only on the backend (requireAuth + requireRole('admin')) — needs
+    // the same auth header as every other protected call.
+    const response = await fetch(`${API_BASE_URL}/api/history`, { headers: authHeaders() });
     if (!response.ok) {
         throw new Error(`Failed to load history (${response.status})`);
     }

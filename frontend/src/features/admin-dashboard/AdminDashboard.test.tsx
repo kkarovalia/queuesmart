@@ -22,6 +22,7 @@ describe('admin dashboard', () => {
         })
         vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
             const url = String(input)
+            if (url.endsWith('/api/auth/me')) return new Response(JSON.stringify({ name: 'Admin', email: 'admin@example.com', role: 'admin' }), { status: 200 })
             if (url.endsWith('/api/services')) return new Response(JSON.stringify([service()]), { status: 200 })
             if (url.endsWith('/api/services/mongo-service-id/status')) {
                 expect(init?.headers).toMatchObject({ Authorization: 'Bearer admin-token' })
