@@ -119,7 +119,7 @@ chatRouter.get("/", requireAuth, async (req: AuthedRequest, res) => {
     }
     const history = chat_history.get(user.id)
     res.json(history ? history.slice(1)
-        .filter(msg => allowed_messages.has(msg.role) && msg.content)
+        .filter(msg => allowed_messages.has(msg.role) && msg.content ? msg.content.length > 0 : false)
         .map(msg => ({ role: msg.role, content: msg.content })) : [])
 })
 
@@ -136,6 +136,6 @@ chatRouter.post("/", requireAuth, async (req: AuthedRequest, res) => {
     const output = await generate(history, { user })
     chat_history.set(user.id, output)
     res.json(output.slice(history.length)
-        .filter(msg => msg.role == "assistant" && msg.content)
+        .filter(msg => msg.role == "assistant" && msg.content ? msg.content.length > 0 : false)
         .map(msg => ({ role: msg.role, content: msg.content })))
 })
