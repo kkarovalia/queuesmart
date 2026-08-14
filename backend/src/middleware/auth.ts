@@ -27,7 +27,7 @@ export function requireAuth(req: AuthedRequest, res: Response, next: NextFunctio
     }
 
     try {
-        req.user = jwt.verify(token, process.env.JWT_SECRET) as AuthPayload
+        req.user = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] }) as AuthPayload
         next()
     } catch {
         res.status(401).json({ error: 'Invalid or expired token' })
