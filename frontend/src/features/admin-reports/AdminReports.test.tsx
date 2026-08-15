@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AdminReportsPage } from './AdminReportsPage'
@@ -71,6 +71,31 @@ describe('admin reports', () => {
         expect(await screen.findByText('Total served', {}, { timeout: 3000 })).toBeInTheDocument()
         expect(screen.getByText('4', { selector: '.admin-reports__summary-value' })).toBeInTheDocument()
         expect(screen.getByText('Dinner Waitlist', { selector: '.admin-reports__summary-value--text' })).toBeInTheDocument()
+    })
+
+    it('sends local calendar dates as inclusive ISO day boundaries', async () => {
+        stubFetch()
+        renderPage()
+        const user = userEvent.setup()
+        const selectedDate = '2026-08-14'
+
+        fireEvent.change(screen.getByLabelText('From'), { target: { value: selectedDate } })
+        fireEvent.change(screen.getByLabelText('To'), { target: { value: selectedDate } })
+        await user.click(screen.getByRole('button', { name: /generate report/i }))
+        await screen.findByText('Total served', {}, { timeout: 3000 })
+
+        const reportUrls = vi.mocked(fetch).mock.calls
+            .map(([url]) => String(url))
+            .filter(url => url.includes('/api/reports/'))
+        const expectedFrom = new Date(`${selectedDate}T00:00:00.000`).toISOString()
+        const expectedTo = new Date(`${selectedDate}T23:59:59.999`).toISOString()
+
+        expect(reportUrls).toHaveLength(3)
+        for (const url of reportUrls) {
+            const params = new URL(url).searchParams
+            expect(params.get('from')).toBe(expectedFrom)
+            expect(params.get('to')).toBe(expectedTo)
+        }
     })
 
     it('shows the service activity table', async () => {

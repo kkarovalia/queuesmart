@@ -955,8 +955,11 @@ export function useSendChatMessage() {
 
 function reportQueryString(filters: ReportFilters, extra?: Record<string, string>): string {
     const params = new URLSearchParams();
-    if (filters.from) params.set('from', filters.from);
-    if (filters.to) params.set('to', filters.to);
+    // HTML date inputs represent calendar days in the viewer's local time.
+    // Send explicit UTC instants for those local boundaries so an evening
+    // record does not move into the next day and disappear from the report.
+    if (filters.from) params.set('from', new Date(`${filters.from}T00:00:00.000`).toISOString());
+    if (filters.to) params.set('to', new Date(`${filters.to}T23:59:59.999`).toISOString());
     if (filters.serviceId !== 'all') params.set('serviceId', filters.serviceId);
     if (extra) for (const [key, value] of Object.entries(extra)) params.set(key, value);
     return params.toString();

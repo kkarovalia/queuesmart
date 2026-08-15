@@ -368,8 +368,11 @@ export interface UsageSummaryReport {
     rangeTo: string | null
 }
 
-export async function getUsageSummaryReport(range: ReportDateRange = {}): Promise<UsageSummaryReport> {
-    const activity = await getServiceActivityReport(range)
+export async function getUsageSummaryReport(
+    range: ReportDateRange = {},
+    serviceId?: string,
+): Promise<UsageSummaryReport> {
+    const activity = await getServiceActivityReport(range, serviceId)
     const totalEntries = activity.reduce((sum, service) => sum + service.totalEntries, 0)
     const weightedWaitSum = activity.reduce(
         (sum, service) => sum + service.averageWaitMinutes * service.totalEntries,

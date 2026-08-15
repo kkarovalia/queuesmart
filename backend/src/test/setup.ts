@@ -14,3 +14,10 @@ process.env.JWT_SECRET ??= 'dev-only-insecure-secret-do-not-use-in-production';
 // itself as "localhost:27017" with no way to override that).
 process.env.DATABASE_URL ??=
     'mongodb://admin:dev-local-only@localhost:27017/queuesmart?authSource=admin&directConnection=true';
+
+// chat.ts validates provider configuration when it is imported. Tool and
+// route tests mock the actual provider call, so deterministic placeholders
+// keep the test suite local and prevent it from depending on developer keys.
+process.env.LLM_BASE_URL ??= 'http://127.0.0.1:1';
+process.env.LLM_API_KEY ??= 'test-only';
+process.env.LLM_MODEL_NAME ??= 'test-only';

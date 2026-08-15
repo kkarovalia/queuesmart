@@ -45,16 +45,10 @@ async function main() {
     for (const { name, phone, email, password, role } of DEMO_USERS) {
         const existing = await prisma.user.findUnique({ where: { email } })
         if (existing) {
-            // Backfill name/phone on accounts seeded before those fields
-            // existed (schema added them in the Final Project pass) — a
-            // plain skip would leave those documents missing a required
-            // field, which crashes any query that reads them back.
-            if (!existing.name) {
-                await prisma.user.update({ where: { email }, data: { name, phone } })
-                console.log(`Backfilled name/phone for ${email}.`)
-            } else {
-                console.log(`Skipping ${email}, already seeded.`)
-            }
+            // Keep the canonical demo identity stable across repeated seeds
+            // while preserving the existing password and related queue data.
+            await prisma.user.update({ where: { email }, data: { name, phone, role } })
+            console.log(`Updated demo profile for ${email}.`)
             continue
         }
         const passwordHash = await argon2.hash(password)

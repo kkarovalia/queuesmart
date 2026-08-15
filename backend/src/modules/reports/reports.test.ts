@@ -153,6 +153,16 @@ describe('reports module', () => {
             expect(serviceIds).not.toContain(bar.id)
         })
 
+        it('includes the full end date submitted by an HTML date input', async () => {
+            const res = await request(app)
+                .get('/api/reports/users?from=2026-01-01&to=2026-01-01')
+                .set('Authorization', adminAuth)
+
+            const serviceIds = res.body.map((row: { serviceId: string }) => row.serviceId)
+            expect(serviceIds).toContain(dinner.id)
+            expect(serviceIds).not.toContain(bar.id)
+        })
+
         it('rejects an invalid date', async () => {
             const res = await request(app)
                 .get('/api/reports/users?from=not-a-date')
@@ -241,6 +251,19 @@ describe('reports module', () => {
                 totalNoShow: 0,
                 averageWaitMinutes: 0,
                 busiestService: null,
+            })
+        })
+
+        it('applies the selected service filter to summary totals', async () => {
+            const res = await request(app)
+                .get(`/api/reports/summary?serviceId=${bar.id}&from=2026-01-01&to=2026-01-02`)
+                .set('Authorization', adminAuth)
+
+            expect(res.body).toMatchObject({
+                totalServed: 0,
+                totalCancelled: 0,
+                totalNoShow: 1,
+                busiestService: { serviceName: 'Report Test Bar', totalEntries: 1 },
             })
         })
 

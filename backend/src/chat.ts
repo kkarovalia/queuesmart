@@ -224,11 +224,17 @@ export const cancelEntry: Tool<{ entry_id: string }> = {
         } catch {
             return "Invalid id format."
         }
-        if (match == null || match.userId !== context.user.id)
+        if (
+            match == null
+            || match.userId !== context.user.id
+            || match.resolvedAt != null
+            || !["waiting", "almost_ready"].includes(match.status)
+        )
             return "Entry not found."
         await prisma.queueEntry.update({
             where: { id: match.id },
             data: {
+                status: "left",
                 outcome: "cancelled",
                 resolvedAt: new Date(Date.now()),
             }

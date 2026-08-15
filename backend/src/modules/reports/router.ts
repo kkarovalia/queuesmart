@@ -33,7 +33,12 @@ function parseDateRange(req: Request): ParsedRangeOk | ParsedRangeError {
         range.from = parsed
     }
     if (typeof to === 'string' && to.length > 0) {
-        const parsed = new Date(to)
+        // HTML date inputs submit YYYY-MM-DD. Treat that as the entire
+        // selected day instead of midnight at its start, which would exclude
+        // every entry resolved later on the visible "To" date.
+        const parsed = /^\d{4}-\d{2}-\d{2}$/.test(to)
+            ? new Date(`${to}T23:59:59.999Z`)
+            : new Date(to)
         if (Number.isNaN(parsed.getTime())) return { error: 'to must be a valid date' }
         range.to = parsed
     }
@@ -101,7 +106,7 @@ reportsRouter.get('/summary', async (req, res, next) => {
             res.status(400).json({ error: parsed.error })
             return
         }
-        const summary = await getUsageSummaryReport(parsed.range)
+        const summary = await getUsageSummaryReport(parsed.range, serviceIdFilter(req))
         if (req.query.format === 'csv') {
             respond(req, res, [summary], 'usage-summary-report')
             return
