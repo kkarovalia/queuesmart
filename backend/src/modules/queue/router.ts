@@ -73,6 +73,35 @@ function toQueueEntryView(entry: QueueEntryWithUser, service: Service, position?
     }
 }
 
+// Customer view of their persisted active entry. QueueFlowProvider uses this
+// after login/reload so entries created in another browser session (or by the
+// chat assistant) are not lost just because React's local state was reset.
+queueRouter.get('/me/active', requireAuth, async (req: AuthedRequest, res, next) => {
+    try {
+        const entry = await prisma.queueEntry.findFirst({
+            where: { userId: req.user!.sub, status: { in: [...ACTIVE_STATUSES] } },
+            include: USER_SELECT,
+            orderBy: { joinedAt: 'asc' },
+        })
+        if (!entry) {
+            res.json(null)
+            return
+        }
+
+        const service = await getServiceById(entry.serviceId)
+        if (!service) {
+            res.status(404).json({ error: 'Service not found' })
+            return
+        }
+
+        const currentQueue = await getCurrentQueue(service)
+        const position = currentQueue.findIndex(item => item.id === entry.id) + 1
+        res.json(toQueueEntryView(entry, service, position))
+    } catch (error) {
+        next(error)
+    }
+})
+
 queueRouter.get('/:serviceId', requireAuth, requireRole('admin'), async (req, res, next) => {
     try {
         const service = await getServiceById(req.params.serviceId)

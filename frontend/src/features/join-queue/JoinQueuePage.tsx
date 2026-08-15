@@ -4,7 +4,7 @@ import { JoinQueueScreen } from './JoinQueueScreen'
 
 export function JoinQueuePage() {
     const services = useServices()
-    const { activeQueue, joinQueue, leaveQueue } = useQueueFlow()
+    const { activeQueue, joinError, isJoining, joinQueue, leaveQueue } = useQueueFlow()
 
     if (services.isLoading) return <p>Loading services...</p>
     if (services.isError || services.data == null) return <p role="alert">Failed to load services.</p>
@@ -22,6 +22,8 @@ export function JoinQueuePage() {
             services={services.data}
             queueLengths={queueLengths}
             activeQueue={activeQueue}
+            joinError={joinError}
+            isJoining={isJoining}
             onJoinQueue={joinQueue}
             onLeaveQueue={leaveQueue}
         />

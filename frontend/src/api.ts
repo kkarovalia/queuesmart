@@ -574,6 +574,25 @@ export function useQueue(serviceId: string): QueueQuery {
     })
 }
 
+export const ACTIVE_QUEUE_QUERY_KEY = ['activeQueue'] as const;
+
+async function fetchActiveQueue(): Promise<QueueEntry | null> {
+    const response = await fetch(`${API_BASE_URL}/api/queue/me/active`, { headers: authHeaders() });
+    if (!response.ok) await parseApiError(response);
+    return response.json();
+}
+
+export type ActiveQueueQuery = UseQueryResult<NoInfer<QueueEntry | null>, Error>;
+
+export function useActiveQueue(enabled: boolean): ActiveQueueQuery {
+    return useQuery({
+        queryKey: ACTIVE_QUEUE_QUERY_KEY,
+        queryFn: fetchActiveQueue,
+        enabled,
+        staleTime: 15 * 1000,
+    });
+}
+
 interface JoinQueueArgs {
     serviceId: string;
     partySize: number;
@@ -623,6 +642,8 @@ export function useServeNextInQueue(serviceId: string): ServeNextMutation {
         mutationFn: () => serveNextInQueue(serviceId),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['queueForService', serviceId] });
+            queryClient.invalidateQueries({ queryKey: ['waitlistHistory'] });
+            queryClient.invalidateQueries({ queryKey: ['allHistory'] });
         },
     })
 }
@@ -649,6 +670,8 @@ export function useMarkNoShow(serviceId: string): MarkNoShowMutation {
         mutationFn: () => markNoShowInQueue(serviceId),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['queueForService', serviceId] });
+            queryClient.invalidateQueries({ queryKey: ['waitlistHistory'] });
+            queryClient.invalidateQueries({ queryKey: ['allHistory'] });
         },
     })
 }
@@ -912,6 +935,13 @@ export function useSendChatMessage() {
                 ...(current ?? []),
                 reply,
             ]);
+            // A chat tool may have joined or left a queue directly in the
+            // database, so refresh every customer-facing queue summary.
+            queryClient.invalidateQueries({ queryKey: ACTIVE_QUEUE_QUERY_KEY });
+            queryClient.invalidateQueries({ queryKey: ['services'] });
+            queryClient.invalidateQueries({ queryKey: ['queueLengths'] });
+            queryClient.invalidateQueries({ queryKey: ['waitlistHistory'] });
+            queryClient.invalidateQueries({ queryKey: ['allHistory'] });
         },
     });
 }

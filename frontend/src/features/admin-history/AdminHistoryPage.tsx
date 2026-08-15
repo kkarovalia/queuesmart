@@ -10,7 +10,7 @@ export function AdminHistoryPage() {
             <header className="page-header">
                 <div>
                     <h1>History</h1>
-                    <p>Every customer's past waitlists and seating outcomes.</p>
+                    <p>Resolved waitlists only. Active guests remain in Queue Management until served, cancelled, or marked no-show.</p>
                 </div>
             </header>
 
@@ -18,7 +18,7 @@ export function AdminHistoryPage() {
                 {historyQuery.isLoading && <p className="admin-loading">Loading history...</p>}
                 {historyQuery.isError && <p role="alert">Failed to load history.</p>}
                 {historyQuery.data && historyQuery.data.length === 0 && (
-                    <p className="history-page__empty">No history yet.</p>
+                    <p className="history-page__empty">No resolved history yet. Active guests are shown in Queue Management.</p>
                 )}
                 {historyQuery.data && historyQuery.data.length > 0 && (
                     <table className="history-page__table">

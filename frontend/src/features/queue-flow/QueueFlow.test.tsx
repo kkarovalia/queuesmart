@@ -11,6 +11,19 @@ import { useQueueFlow } from './useQueueFlow'
 import { mockServices, mockQueueEntries } from '../../data/mockData'
 
 const apiMocks = vi.hoisted(() => ({
+    activeQueue: null as null | {
+        id: string
+        serviceId: string
+        userId: string
+        userName: string
+        userEmail: string
+        partySize: number
+        priority: 'low' | 'medium' | 'high'
+        status: 'waiting' | 'almost-ready' | 'served' | 'left'
+        joinedAt: string
+        servedAt: string | null
+        position?: number
+    },
     joinQueue: vi.fn(),
     leaveQueue: vi.fn(),
     fetchEntryWaitStatus: vi.fn(),
@@ -24,8 +37,10 @@ const apiMocks = vi.hoisted(() => ({
 }))
 
 vi.mock('../../api', () => ({
+    ACTIVE_QUEUE_QUERY_KEY: ['activeQueue'],
     useUser: () => ({ data: { id: 'mongo-user-id', email: 'jamie@example.com', role: 'user' } }),
     useServices: () => ({ data: apiMocks.services }),
+    useActiveQueue: () => ({ data: apiMocks.activeQueue, isLoading: false }),
     useNotifications: () => ({
         data: [{
             id: 'notification-1',
@@ -49,7 +64,7 @@ const queueLengths = mockQueueEntries.reduce<Record<string, number>>((lengths, e
 
 function QueueFlowHarness() {
     const [screenName, setScreenName] = useState<'join' | 'status' | 'notifications'>('join')
-    const { activeQueue, notifications, joinQueue, leaveQueue, advanceStatus, markAllRead } = useQueueFlow()
+    const { activeQueue, joinError, isJoining, notifications, joinQueue, leaveQueue, advanceStatus, markAllRead } = useQueueFlow()
 
     return (
         <>
@@ -63,6 +78,8 @@ function QueueFlowHarness() {
                     services={mockServices}
                     queueLengths={queueLengths}
                     activeQueue={activeQueue}
+                    joinError={joinError}
+                    isJoining={isJoining}
                     onJoinQueue={joinQueue}
                     onLeaveQueue={leaveQueue}
                 />
@@ -96,6 +113,7 @@ async function joinDinnerWaitlist() {
 }
 
 beforeEach(() => {
+    apiMocks.activeQueue = null
     apiMocks.joinQueue.mockReset().mockResolvedValue({
         id: 'queue-entry-id',
         serviceId: 'svc-1',
@@ -131,6 +149,48 @@ describe('Kashf user queue flow', () => {
         expect(apiMocks.joinQueue).toHaveBeenCalledWith({ serviceId: 'svc-1', partySize: 4 })
         expect(screen.getByRole('status')).toHaveTextContent(/almost ready/i)
         expect(screen.getByText('1')).toBeInTheDocument()
+    })
+
+    it('rehydrates an active queue entry returned by the backend', async () => {
+        apiMocks.activeQueue = {
+            id: 'persisted-entry-id',
+            serviceId: 'svc-3',
+            userId: 'mongo-user-id',
+            userName: 'Jamie Lee',
+            userEmail: 'jamie@example.com',
+            partySize: 3,
+            priority: 'medium',
+            status: 'waiting',
+            joinedAt: '2026-08-14T23:00:00.000Z',
+            servedAt: null,
+            position: 2,
+        }
+        apiMocks.fetchEntryWaitStatus.mockResolvedValueOnce({
+            entryId: 'persisted-entry-id',
+            serviceId: 'svc-3',
+            position: 2,
+            estimatedWaitMinutes: 40,
+        })
+
+        const user = userEvent.setup()
+        renderFlow()
+        await user.click(screen.getByRole('button', { name: /queue status/i }))
+
+        expect(await screen.findByRole('heading', { name: 'Patio Seating' })).toBeInTheDocument()
+        expect(screen.getByText('40 min')).toBeInTheDocument()
+        expect(apiMocks.fetchEntryWaitStatus).toHaveBeenCalledWith('svc-3', 'persisted-entry-id')
+    })
+
+    it('shows the backend message when joining is rejected', async () => {
+        apiMocks.joinQueue.mockRejectedValueOnce(new Error('You are already in the queue for this service'))
+        const user = userEvent.setup()
+        renderFlow()
+
+        await user.selectOptions(screen.getByLabelText(/select service/i), 'svc-3')
+        await user.click(screen.getByRole('button', { name: /join waitlist/i }))
+
+        expect(await screen.findByRole('alert')).toHaveTextContent('You are already in the queue for this service')
+        expect(screen.getByRole('button', { name: /join waitlist/i })).toBeEnabled()
     })
 
     it('leaves through the authenticated API contract and clears local status', async () => {

@@ -7,10 +7,12 @@ import type {
 
 export type QueueFlowContextValue = {
     activeQueue: ActiveQueueEntry | null
+    joinError: string | null
+    isJoining: boolean
     notifications: QueueNotification[]
-    joinQueue: (queueForm: QueueFormData) => void
-    leaveQueue: () => void
-    advanceStatus: () => void
+    joinQueue: (queueForm: QueueFormData) => Promise<void>
+    leaveQueue: () => Promise<void>
+    advanceStatus: () => Promise<void>
     markAllRead: () => void
 }
 

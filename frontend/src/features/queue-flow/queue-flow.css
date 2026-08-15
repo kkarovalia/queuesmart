@@ -20,6 +20,7 @@
 .queue-primary-button { border: 0; background: var(--teal); color: #fff; }
 .queue-secondary-button { border: 1px solid var(--border); background: #fff; color: var(--ink); }
 .queue-danger-button { color: var(--red); border-color: #efb8bd; }
+.queue-error-banner { margin: 0; border: 1px solid #efb8bd; background: var(--red-soft); border-radius: 7px; padding: .8rem .9rem; color: var(--red); font-size: .85rem; }
 .queue-service-summary h2 { margin: .8rem 0 .35rem; font-size: 1.15rem; }
 .queue-service-summary p { color: var(--muted); line-height: 1.6; }
 .queue-service-summary dl { margin: 1.2rem 0 0; display: grid; gap: .75rem; }

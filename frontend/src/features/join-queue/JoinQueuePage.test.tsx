@@ -16,25 +16,29 @@ const REAL_SERVICE_ID = 'real-backend-service-id'
 
 const apiMocks = vi.hoisted(() => ({
     joinQueue: vi.fn(),
+    user: { name: 'Jamie', email: 'jamie@example.com', role: 'user' as const },
+    services: [{
+        id: 'real-backend-service-id',
+        name: 'Dinner Waitlist',
+        description: '',
+        expectedDurationMinutes: 45,
+        priority: 'high' as const,
+        status: 'open' as const,
+        estimatedWait: '45 min',
+        tablePreferenceLabel: 'Any available table',
+        queueLength: 3,
+        userInQueue: false,
+    }],
 }))
 
 vi.mock('../../api', () => ({
-    useUser: () => ({ data: { name: 'Jamie', email: 'jamie@example.com', role: 'user' } }),
+    ACTIVE_QUEUE_QUERY_KEY: ['activeQueue'],
+    useUser: () => ({ data: apiMocks.user }),
+    useActiveQueue: () => ({ data: null, isLoading: false }),
     useServices: () => ({
         isLoading: false,
         isError: false,
-        data: [{
-            id: REAL_SERVICE_ID,
-            name: 'Dinner Waitlist',
-            description: '',
-            expectedDurationMinutes: 45,
-            priority: 'high',
-            status: 'open',
-            estimatedWait: '45 min',
-            tablePreferenceLabel: 'Any available table',
-            queueLength: 3,
-            userInQueue: false,
-        }],
+        data: apiMocks.services,
     }),
     useNotifications: () => ({ data: [] }),
     useMarkNotificationRead: () => ({ mutate: vi.fn() }),

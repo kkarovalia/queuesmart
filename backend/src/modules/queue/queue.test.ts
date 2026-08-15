@@ -144,6 +144,7 @@ describe('queue authorization', () => {
     it('requires authentication to join or leave', async () => {
         expect((await request(app).post(`/api/queue/${openService.id}/join`).send({ partySize: 2 })).status).toBe(401)
         expect((await request(app).post(`/api/queue/${openService.id}/leave`)).status).toBe(401)
+        expect((await request(app).get('/api/queue/me/active')).status).toBe(401)
     })
 
     it('restricts queue listing, serving, and no-show marking to administrators', async () => {
@@ -165,6 +166,37 @@ describe('queue authorization', () => {
 
         expect(res.status).toBe(404)
         expect(res.body.error).toBe('User not found')
+    })
+})
+
+describe('GET /api/queue/me/active', () => {
+    it('returns the authenticated user\'s persisted active entry with its live position', async () => {
+        await createEntry({ userId: secondUser.id, joinedAt: new Date('2026-07-10T18:00:00Z') })
+        const ownEntry = await createEntry({ userId: user.id, joinedAt: new Date('2026-07-10T18:05:00Z') })
+
+        const res = await request(createApp())
+            .get('/api/queue/me/active')
+            .set('Authorization', userAuth)
+
+        expect(res.status).toBe(200)
+        expect(res.body).toMatchObject({
+            id: ownEntry.id,
+            serviceId: openService.id,
+            userId: user.id,
+            status: 'waiting',
+            position: 2,
+        })
+    })
+
+    it('returns null when the authenticated user has no active entry', async () => {
+        await createEntry({ status: 'served', resolvedAt: new Date(), outcome: 'seated' })
+
+        const res = await request(app)
+            .get('/api/queue/me/active')
+            .set('Authorization', userAuth)
+
+        expect(res.status).toBe(200)
+        expect(res.body).toBeNull()
     })
 })
 

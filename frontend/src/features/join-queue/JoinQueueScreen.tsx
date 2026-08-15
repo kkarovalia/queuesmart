@@ -9,20 +9,24 @@ type JoinQueueScreenProps = {
     services: Service[]
     queueLengths: Record<string, number>
     activeQueue: ActiveQueueEntry | null
-    onJoinQueue: (queueForm: QueueFormData) => void
-    onLeaveQueue: () => void
+    joinError?: string | null
+    isJoining?: boolean
+    onJoinQueue: (queueForm: QueueFormData) => Promise<void>
+    onLeaveQueue: () => Promise<void>
 }
 
 const partySizes = [1, 2, 3, 4, 5, 6]
 
-export function JoinQueueScreen({ services, queueLengths, activeQueue, onJoinQueue, onLeaveQueue }: JoinQueueScreenProps) {
+export function JoinQueueScreen({ services, queueLengths, activeQueue, joinError = null, isJoining = false, onJoinQueue, onLeaveQueue }: JoinQueueScreenProps) {
     const [serviceId, setServiceId] = useState(services[0]?.id ?? '')
     const [partySize, setPartySize] = useState(4)
     const [tablePreference, setTablePreference] = useState(tablePreferences[0])
     const selectedService = useMemo(() => services.find(service => service.id === serviceId) ?? services[0], [serviceId, services])
 
-    function submitQueue() {
-        if (selectedService?.status === 'open') onJoinQueue({ serviceId: selectedService.id, partySize, tablePreference })
+    async function submitQueue() {
+        if (selectedService?.status === 'open') {
+            await onJoinQueue({ serviceId: selectedService.id, partySize, tablePreference })
+        }
     }
 
     return (
@@ -56,8 +60,9 @@ export function JoinQueueScreen({ services, queueLengths, activeQueue, onJoinQue
                         <div><UsersRound size={18} /><span>Parties ahead<strong>{queueLengths[selectedService.id] ?? 0}</strong></span></div>
                     </div> : null}
 
-                    <button className="queue-primary-button" type="button" onClick={submitQueue} disabled={Boolean(activeQueue) || selectedService?.status !== 'open'}>
-                        {activeQueue ? 'Already in a waitlist' : selectedService?.status === 'open' ? 'Join Waitlist' : 'Queue Closed'}
+                    {joinError ? <p className="queue-error-banner" role="alert">{joinError}</p> : null}
+                    <button className="queue-primary-button" type="button" onClick={submitQueue} disabled={Boolean(activeQueue) || isJoining || selectedService?.status !== 'open'}>
+                        {activeQueue ? 'Already in a waitlist' : isJoining ? 'Joining...' : selectedService?.status === 'open' ? 'Join Waitlist' : 'Queue Closed'}
                     </button>
                     {activeQueue ? <button className="queue-secondary-button queue-danger-button" type="button" onClick={onLeaveQueue}>Leave current queue</button> : null}
                 </div>
