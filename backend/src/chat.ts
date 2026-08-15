@@ -82,7 +82,7 @@ export const getUserQueueEntries: Tool<object> = {
             where: {
                 userId: context.user.id,
                 status: { in: ["waiting", "almost_ready"] },
-                resolvedAt: {isSet: false},
+                resolvedAt: { isSet: false },
             },
             orderBy: { position: "asc" },
         });
@@ -95,7 +95,7 @@ export const getUserQueueEntries: Tool<object> = {
                 where: {
                     serviceId: { in: serviceIds },
                     status: { in: ["waiting", "almost_ready"] },
-                    resolvedAt: {isSet: false},
+                    resolvedAt: { isSet: false },
                 },
                 orderBy: { position: "asc" },
             }),
@@ -138,7 +138,7 @@ export const getOpenServices: Tool<object> = {
 
 // Need to add seating pref as arg if we keep that field.
 // Will update if fixed.
-export const joinQueue: Tool<{ 
+export const joinQueue: Tool<{
     entry_id: string,
     party_size: number,
 }> = {
@@ -173,15 +173,18 @@ export const joinQueue: Tool<{
         }
         if (match == null)
             return "Service not found."
-        const num_existing = await prisma.queueEntry.count({
+
+        const existingEntry = await prisma.queueEntry.findFirst({
             where: {
-                serviceId: match.id, 
                 userId: context.user.id,
-                resolvedAt: {isSet: false},
+                resolvedAt: { isSet: false },
             }
         })
-        if (num_existing > 0)
-            return "User already in queue."
+        if (existingEntry != null)
+            return existingEntry.serviceId === match.id
+                ? "User already in this queue."
+                : "User is already in another queue. Leave it before joining a new one."
+
         await prisma.queueEntry.create({
             data: {
                 serviceId: match.id,
@@ -225,7 +228,7 @@ export const cancelEntry: Tool<{ entry_id: string }> = {
             return "Entry not found."
         await prisma.queueEntry.update({
             where: { id: match.id },
-            data: { 
+            data: {
                 outcome: "cancelled",
                 resolvedAt: new Date(Date.now()),
             }
